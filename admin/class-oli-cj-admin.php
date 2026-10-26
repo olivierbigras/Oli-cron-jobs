@@ -1211,7 +1211,13 @@ class Oli_CJ_Admin {
 						<?php
 						echo esc_html( Oli_CJ_Cron_Manager::format_site_datetime( $event['timestamp'] ) );
 						echo ' / ';
-						echo esc_html( Oli_CJ_Cron_Manager::format_utc_datetime( $event['timestamp'] ) . ' UTC' );
+						echo esc_html(
+							sprintf(
+								/* translators: %s: UTC datetime */
+								__( '%s UTC', 'oli-cron-jobs' ),
+								Oli_CJ_Cron_Manager::format_utc_datetime( $event['timestamp'] )
+							)
+						);
 						?>
 					</td>
 				</tr>
@@ -1396,13 +1402,23 @@ class Oli_CJ_Admin {
 							<tr>
 								<td><?php echo esc_html( $this->format_log_datetime( $log->created_at ) ); ?></td>
 								<td><code><?php echo esc_html( $log->hook ); ?></code></td>
-								<td><?php echo esc_html( ucfirst( $log->event_type ) ); ?></td>
-								<td><?php echo esc_html( number_format( $log->duration, 4 ) ); ?>s</td>
+								<td><?php echo esc_html( Oli_CJ_Logger::translate_event_type( $log->event_type ) ); ?></td>
+								<td>
+									<?php
+									echo esc_html(
+										sprintf(
+											/* translators: %s: duration in seconds */
+											__( '%ss', 'oli-cron-jobs' ),
+											number_format( (float) $log->duration, 4 )
+										)
+									);
+									?>
+								</td>
 								<td>
 									<?php
 									self::print_status(
 										! empty( $log->error_message ) ? 'error' : 'ok',
-										! empty( $log->error_message ) ? $log->error_message : __( 'Success', 'oli-cron-jobs' )
+										! empty( $log->error_message ) ? Oli_CJ_Logger::translate_error_message( $log->error_message ) : __( 'Success', 'oli-cron-jobs' )
 									);
 									?>
 								</td>

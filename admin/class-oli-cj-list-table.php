@@ -489,9 +489,15 @@ class Oli_CJ_List_Table extends WP_List_Table {
 		$output = array();
 		foreach ( $callbacks as $callback ) {
 			$output[] = sprintf(
-				'<code>%s</code> <small>(priority: %d)</small><br><small>%s</small>',
+				'<code>%s</code> <small>(%s)</small><br><small>%s</small>',
 				$this->breakable_code( $callback['function'] ),
-				absint( $callback['priority'] ),
+				esc_html(
+					sprintf(
+						/* translators: %d: callback priority */
+						__( 'priority: %d', 'oli-cron-jobs' ),
+						absint( $callback['priority'] )
+					)
+				),
 				esc_html( $callback['source'] )
 			);
 		}

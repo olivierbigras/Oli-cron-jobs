@@ -227,6 +227,53 @@ class Oli_CJ_Logger {
 	}
 
 	/**
+	 * Translate a stored log error message for display.
+	 *
+	 * Known English strings recorded by the plugin are mapped to __().
+	 * Unknown messages (exceptions, HTTP errors, older rows) are returned
+	 * unchanged so existing log rows keep their stored text.
+	 *
+	 * @param string $message Stored error message.
+	 * @return string
+	 */
+	public static function translate_error_message( $message ) {
+		$message = (string) $message;
+
+		if ( '' === $message ) {
+			return '';
+		}
+
+		$known = array(
+			'Hook is paused'                       => __( 'Hook is paused', 'oli-cron-jobs' ),
+			'PHP events are disabled'              => __( 'PHP events are disabled', 'oli-cron-jobs' ),
+			'PHP event failed the integrity check' => __( 'PHP event failed the integrity check', 'oli-cron-jobs' ),
+			'URL event failed the integrity check' => __( 'URL event failed the integrity check', 'oli-cron-jobs' ),
+			'PHP events cannot be executed while file editing is disabled.' => __( 'PHP events cannot be executed while file editing is disabled.', 'oli-cron-jobs' ),
+		);
+
+		return isset( $known[ $message ] ) ? $known[ $message ] : $message;
+	}
+
+	/**
+	 * Translate a stored log event type for display.
+	 *
+	 * @param string $event_type Stored event type slug.
+	 * @return string
+	 */
+	public static function translate_event_type( $event_type ) {
+		$event_type = (string) $event_type;
+		$labels     = array(
+			'standard' => __( 'Standard', 'oli-cron-jobs' ),
+			'manual'   => __( 'Manual', 'oli-cron-jobs' ),
+			'php'      => __( 'PHP', 'oli-cron-jobs' ),
+			'url'      => __( 'URL', 'oli-cron-jobs' ),
+			'blocked'  => __( 'Blocked', 'oli-cron-jobs' ),
+		);
+
+		return isset( $labels[ $event_type ] ) ? $labels[ $event_type ] : $event_type;
+	}
+
+	/**
 	 * Delete logs for a specific hook
 	 *
 	 * @param string $hook Hook name.

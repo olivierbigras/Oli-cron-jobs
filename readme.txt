@@ -5,7 +5,7 @@ Tags: cron, scheduled-tasks, cron-manager, debugging, tasks
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.4
+Stable tag: 0.2.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -118,6 +118,10 @@ This feature is unused until a URL event is created.
 
 == Changelog ==
 
+= 0.2.5 =
+* Added Domain Path: /languages and regenerated the translation catalog
+* Known log error messages are translated on the logs screen; stored rows are unchanged
+
 = 0.2.4 =
 * Import and other admin notices use oli_cj_message so WordPress no longer strips the confirmation
 * Late, missed, and paused row tints override WP striped-table styles
@@ -170,6 +174,9 @@ This feature is unused until a URL event is created.
 * Initial release
 
 == Upgrade Notice ==
+
+= 0.2.5 =
+Translation catalog updated. Known log messages are translated when displayed.
 
 = 0.2.4 =
 Import now shows a confirmation, status row colors stay visible on striped tables, and log dates follow the site format.

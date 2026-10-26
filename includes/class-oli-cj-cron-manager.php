@@ -610,7 +610,7 @@ class Oli_CJ_Cron_Manager {
 					return array(
 						'type'  => 'plugin',
 						'label' => sprintf(
-							/* translators: %s: plugin name */
+							/* translators: %s: plugin name or slug */
 							__( 'Plugin: %s', 'oli-cron-jobs' ),
 							$plugin_data['Name']
 						),
@@ -621,7 +621,7 @@ class Oli_CJ_Cron_Manager {
 			return array(
 				'type'  => 'plugin',
 				'label' => sprintf(
-					/* translators: %s: plugin slug */
+					/* translators: %s: plugin name or slug */
 					__( 'Plugin: %s', 'oli-cron-jobs' ),
 					$plugin_slug
 				),
