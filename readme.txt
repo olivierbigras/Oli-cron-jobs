@@ -5,7 +5,7 @@ Tags: cron, scheduled-tasks, cron-manager, debugging, tasks
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.1
+Stable tag: 0.2.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -118,6 +118,9 @@ This feature is unused until a URL event is created.
 
 == Changelog ==
 
+= 0.2.2 =
+* Hidden Edit Cron Event screen now sets a page title so PHP 8.4 no longer deprecates strip_tags(null) on that page
+
 = 0.2.1 =
 * PHP events refuse to execute (including from cron) when DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS is set
 * PHP events now run through eval() after an HMAC integrity check; documented the risk
@@ -157,6 +160,9 @@ This feature is unused until a URL event is created.
 * Initial release
 
 == Upgrade Notice ==
+
+= 0.2.2 =
+Fixes a PHP 8.4 deprecation on the hidden Edit Cron Event screen.
 
 = 0.2.1 =
 PHP events now use eval() with HMAC checks and will not run when file editing is disabled. CSV export is hardened against formula injection.

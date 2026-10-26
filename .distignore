@@ -27,8 +27,8 @@ package-lock.json
 node_modules
 vendor
 
-# Internal markdown (keep readme.txt)
-*.md
+# Internal markdown (keep readme.txt and CHANGELOG.md)
+README.md
 
 # IDE and OS
 .vscode

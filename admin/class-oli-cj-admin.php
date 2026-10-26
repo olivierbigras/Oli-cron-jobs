@@ -63,8 +63,9 @@ class Oli_CJ_Admin {
 			array( $this, 'render_add_event_page' )
 		);
 
-		// Hidden Tools child. A string parent avoids PHP 8.4 strip_tags(null).
-		add_submenu_page(
+		// Hidden Tools child. remove_submenu_page() drops the menu item, so
+		// get_admin_page_title() would leave $title unset. Set it on load.
+		$edit_hook = add_submenu_page(
 			'tools.php',
 			__( 'Edit Cron Event', 'oli-cron-jobs' ),
 			__( 'Edit Cron Event', 'oli-cron-jobs' ),
@@ -73,6 +74,7 @@ class Oli_CJ_Admin {
 			array( $this, 'render_edit_event_page' )
 		);
 		remove_submenu_page( 'tools.php', 'oli-cron-jobs-edit' );
+		add_action( 'load-' . $edit_hook, array( $this, 'load_edit_event_page' ) );
 
 		add_submenu_page(
 			'tools.php',
@@ -99,6 +101,44 @@ class Oli_CJ_Admin {
 			'manage_options',
 			'oli-cron-jobs-settings',
 			array( $this, 'render_settings_page' )
+		);
+	}
+
+	/**
+	 * Give the hidden edit screen a title before admin-header.php runs.
+	 *
+	 * Calling remove_submenu_page() keeps the page off the Tools menu but also
+	 * removes the only source WordPress uses for $title. PHP 8.4 then
+	 * deprecates strip_tags( null ) in admin-header.php.
+	 */
+	public function load_edit_event_page() {
+		global $title, $parent_file, $submenu_file;
+
+		// phpcs:disable WordPress.WP.GlobalVariablesOverride.Prohibited -- Hidden edit screen must set $title before admin-header.php; parent/submenu keep Tools > Cron Jobs highlighted.
+		$title        = __( 'Edit Cron Event', 'oli-cron-jobs' );
+		$parent_file  = 'tools.php';
+		$submenu_file = 'oli-cron-jobs';
+		// phpcs:enable WordPress.WP.GlobalVariablesOverride.Prohibited
+
+		add_filter( 'admin_title', array( $this, 'filter_edit_event_admin_title' ), 10, 2 );
+	}
+
+	/**
+	 * Keep the HTML document title populated if the screen title is missing.
+	 *
+	 * @param string $admin_title Full admin title.
+	 * @param string $title       Screen title.
+	 * @return string
+	 */
+	public function filter_edit_event_admin_title( $admin_title, $title ) {
+		if ( is_string( $title ) && '' !== $title ) {
+			return $admin_title;
+		}
+
+		return sprintf(
+			'%1$s &lsaquo; %2$s',
+			__( 'Edit Cron Event', 'oli-cron-jobs' ),
+			get_bloginfo( 'name' )
 		);
 	}
 
