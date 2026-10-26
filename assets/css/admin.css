@@ -5,7 +5,7 @@
  */
 
 .oli-cj-issues {
-	color: #d63638;
+	color: #b32d2e;
 }
 
 .oli-cj-hidden {
@@ -38,21 +38,41 @@ tr.oli-cj-event-unsupported {
 	background-color: #fcf9e8;
 }
 
+.oli-cj-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-weight: 600;
+}
+
+.oli-cj-status .dashicons {
+	width: 18px;
+	height: 18px;
+	font-size: 18px;
+	line-height: 1;
+}
+
 .oli-cj-status-overdue,
 .oli-cj-status-error {
 	color: #b32d2e;
 }
 
 .oli-cj-status-success,
-.oli-cj-status-scheduled {
-	color: #00a32a;
+.oli-cj-status-scheduled,
+.oli-cj-status-ok {
+	color: #007017;
 }
 
 .oli-cj-status-warning,
 .oli-cj-status-paused,
 .oli-cj-status-disabled,
 .oli-cj-status-unsupported {
-	color: #dba617;
+	color: #7a5400;
+}
+
+.oli-cj-status-off {
+	color: #50575e;
+	font-weight: 500;
 }
 
 .oli-cj-code {
@@ -68,7 +88,7 @@ tr.oli-cj-event-unsupported {
 	margin: 10px 0;
 	background-color: #fff3cd;
 	border-left: 4px solid #ffc107;
-	color: #856404;
+	color: #7a5400;
 }
 
 .oli-cj-error {
@@ -110,7 +130,11 @@ tr.oli-cj-event-unsupported {
 }
 
 #oli-cron-jobs .wp-list-table .column-hook {
-	width: 25%;
+	width: 22%;
+}
+
+#oli-cron-jobs .wp-list-table .column-callbacks {
+	width: 24%;
 }
 
 #oli-cron-jobs .wp-list-table .column-next_run {
@@ -118,7 +142,19 @@ tr.oli-cj-event-unsupported {
 }
 
 #oli-cron-jobs .wp-list-table .column-status {
-	width: 10%;
+	width: 12%;
+}
+
+#oli-cron-jobs .wp-list-table .column-hook code,
+#oli-cron-jobs .wp-list-table .column-callbacks code,
+.oli-cj-logs-table code {
+	word-break: normal;
+	overflow-wrap: anywhere;
+}
+
+.oli-cj-clear-logs-disabled {
+	opacity: 0.5;
+	pointer-events: none;
 }
 
 .oli-cj-php-warning {
@@ -131,9 +167,9 @@ tr.oli-cj-event-unsupported {
 
 .oli-cj-php-warning h3 {
 	margin-top: 0;
-	color: #856404;
+	color: #7a5400;
 }
 
 .oli-cj-php-warning p {
-	color: #856404;
+	color: #7a5400;
 }

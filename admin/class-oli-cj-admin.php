@@ -124,6 +124,53 @@ class Oli_CJ_Admin {
 	}
 
 	/**
+	 * Status text with an icon so meaning is not color-only.
+	 *
+	 * @param string $tone  One of ok, warning, error, off, disabled, paused.
+	 * @param string $label Visible label.
+	 * @return string
+	 */
+	public static function status_markup( $tone, $label ) {
+		$tones = array(
+			'ok'       => array( 'oli-cj-status-ok', 'dashicons-yes-alt' ),
+			'warning'  => array( 'oli-cj-status-warning', 'dashicons-warning' ),
+			'error'    => array( 'oli-cj-status-error', 'dashicons-dismiss' ),
+			'off'      => array( 'oli-cj-status-off', 'dashicons-minus' ),
+			'disabled' => array( 'oli-cj-status-disabled', 'dashicons-warning' ),
+			'paused'   => array( 'oli-cj-status-paused', 'dashicons-controls-pause' ),
+		);
+
+		if ( ! isset( $tones[ $tone ] ) ) {
+			$tone = 'off';
+		}
+
+		return sprintf(
+			'<span class="oli-cj-status %1$s"><span class="dashicons %2$s" aria-hidden="true"></span><span class="oli-cj-status-text">%3$s</span></span>',
+			esc_attr( $tones[ $tone ][0] ),
+			esc_attr( $tones[ $tone ][1] ),
+			esc_html( $label )
+		);
+	}
+
+	/**
+	 * Print a status badge.
+	 *
+	 * @param string $tone  One of ok, warning, error, off, disabled, paused.
+	 * @param string $label Visible label.
+	 */
+	public static function print_status( $tone, $label ) {
+		echo wp_kses(
+			self::status_markup( $tone, $label ),
+			array(
+				'span' => array(
+					'class'       => true,
+					'aria-hidden' => true,
+				),
+			)
+		);
+	}
+
+	/**
 	 * Keep the HTML document title populated if the screen title is missing.
 	 *
 	 * @param string $admin_title Full admin title.
@@ -155,7 +202,7 @@ class Oli_CJ_Admin {
 		wp_enqueue_style(
 			'oli-cj-admin',
 			OLI_CJ_PLUGIN_URL . 'assets/css/admin.css',
-			array(),
+			array( 'dashicons' ),
 			OLI_CJ_VERSION
 		);
 
@@ -788,7 +835,7 @@ class Oli_CJ_Admin {
 
 		$this->render_page_header( __( 'Cron Events', 'oli-cron-jobs' ) );
 		?>
-		<div class="wrap">
+		<div class="wrap" id="oli-cron-jobs">
 			<h1>
 				<?php echo esc_html__( 'Cron Events', 'oli-cron-jobs' ); ?>
 				<a href="<?php echo esc_url( admin_url( 'tools.php?page=oli-cron-jobs-add' ) ); ?>" class="page-title-action">
@@ -828,10 +875,10 @@ class Oli_CJ_Admin {
 						<th scope="row"><?php echo esc_html__( 'Built-in WP-Cron', 'oli-cron-jobs' ); ?></th>
 						<td>
 							<?php if ( $cron_disabled ) : ?>
-								<span class="oli-cj-status-disabled"><?php echo esc_html__( 'Disabled (DISABLE_WP_CRON)', 'oli-cron-jobs' ); ?></span>
+								<?php self::print_status( 'disabled', __( 'Disabled (DISABLE_WP_CRON)', 'oli-cron-jobs' ) ); ?>
 								<p class="description"><?php echo esc_html__( 'WordPress will not spawn cron on page views. Configure a server cron job that requests wp-cron.php.', 'oli-cron-jobs' ); ?></p>
 							<?php else : ?>
-								<span class="oli-cj-status-success"><?php echo esc_html__( 'Enabled', 'oli-cron-jobs' ); ?></span>
+								<?php self::print_status( 'ok', __( 'Enabled', 'oli-cron-jobs' ) ); ?>
 							<?php endif; ?>
 						</td>
 					</tr>
@@ -839,10 +886,10 @@ class Oli_CJ_Admin {
 						<th scope="row"><?php echo esc_html__( 'Alternate WP-Cron', 'oli-cron-jobs' ); ?></th>
 						<td>
 							<?php if ( $alternate_cron ) : ?>
-								<span class="oli-cj-status-warning"><?php echo esc_html__( 'Enabled (ALTERNATE_WP_CRON)', 'oli-cron-jobs' ); ?></span>
+								<?php self::print_status( 'warning', __( 'Enabled (ALTERNATE_WP_CRON)', 'oli-cron-jobs' ) ); ?>
 								<p class="description"><?php echo esc_html__( 'WordPress redirects visitors to spawn cron. This can be unreliable on some hosts.', 'oli-cron-jobs' ); ?></p>
 							<?php else : ?>
-								<span class="oli-cj-status-success"><?php echo esc_html__( 'Off', 'oli-cron-jobs' ); ?></span>
+								<?php self::print_status( 'off', __( 'Off', 'oli-cron-jobs' ) ); ?>
 							<?php endif; ?>
 						</td>
 					</tr>
@@ -854,9 +901,12 @@ class Oli_CJ_Admin {
 						<th scope="row"><?php echo esc_html__( 'Spawn test', 'oli-cron-jobs' ); ?></th>
 						<td>
 							<?php if ( is_array( $spawn ) && ! empty( $spawn['message'] ) ) : ?>
-								<p class="<?php echo ! empty( $spawn['success'] ) ? 'oli-cj-status-success' : 'oli-cj-status-error'; ?>">
-									<?php echo esc_html( $spawn['message'] ); ?>
-								</p>
+								<?php
+								self::print_status(
+									! empty( $spawn['success'] ) ? 'ok' : 'error',
+									$spawn['message']
+								);
+								?>
 							<?php endif; ?>
 							<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'tools.php?page=oli-cron-jobs&action=test_spawn' ), 'oli_cj_action' ) ); ?>" class="button">
 								<?php echo esc_html__( 'Run spawn test', 'oli-cron-jobs' ); ?>
@@ -1285,15 +1335,20 @@ class Oli_CJ_Admin {
 	public function render_logs_page() {
 		$this->render_page_header( __( 'Cron Logs', 'oli-cron-jobs' ) );
 
-		$logs       = Oli_CJ_Logger::get_logs( array( 'limit' => 100 ) );
-		$total_logs = Oli_CJ_Logger::get_log_count();
+		$logs           = Oli_CJ_Logger::get_logs( array( 'limit' => 100 ) );
+		$total_logs     = Oli_CJ_Logger::get_log_count();
+		$retention_days = (int) get_option( 'oli_cj_log_retention_days', 30 );
 		?>
 		<div class="wrap">
 			<h1>
 				<?php echo esc_html__( 'Cron Logs', 'oli-cron-jobs' ); ?>
-				<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'tools.php?page=oli-cron-jobs-logs&action=clear_logs' ), 'oli_cj_action' ) ); ?>" class="page-title-action oli-cj-confirm" data-oli-cj-confirm="<?php echo esc_attr__( 'Are you sure you want to clear all logs?', 'oli-cron-jobs' ); ?>">
-					<?php echo esc_html__( 'Clear All Logs', 'oli-cron-jobs' ); ?>
-				</a>
+				<?php if ( $total_logs > 0 ) : ?>
+					<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'tools.php?page=oli-cron-jobs-logs&action=clear_logs' ), 'oli_cj_action' ) ); ?>" class="page-title-action oli-cj-confirm" data-oli-cj-confirm="<?php echo esc_attr__( 'Are you sure you want to clear all logs?', 'oli-cron-jobs' ); ?>">
+						<?php echo esc_html__( 'Clear All Logs', 'oli-cron-jobs' ); ?>
+					</a>
+				<?php else : ?>
+					<span class="page-title-action oli-cj-clear-logs-disabled" aria-disabled="true"><?php echo esc_html__( 'Clear All Logs', 'oli-cron-jobs' ); ?></span>
+				<?php endif; ?>
 			</h1>
 
 			<?php $this->render_messages(); ?>
@@ -1311,7 +1366,7 @@ class Oli_CJ_Admin {
 				?>
 			</p>
 
-			<table class="wp-list-table widefat fixed striped">
+			<table class="wp-list-table widefat fixed striped oli-cj-logs-table">
 				<thead>
 					<tr>
 						<th><?php echo esc_html__( 'Date/Time', 'oli-cron-jobs' ); ?></th>
@@ -1324,7 +1379,17 @@ class Oli_CJ_Admin {
 				<tbody>
 					<?php if ( empty( $logs ) ) : ?>
 						<tr>
-							<td colspan="5"><?php echo esc_html__( 'No logs found.', 'oli-cron-jobs' ); ?></td>
+							<td colspan="5">
+								<?php
+								echo esc_html(
+									sprintf(
+										/* translators: %d: log retention days */
+										__( 'No executions have been recorded yet. Entries appear here after cron runs. Logs are kept for %d days (change this under Settings).', 'oli-cron-jobs' ),
+										$retention_days
+									)
+								);
+								?>
+							</td>
 						</tr>
 					<?php else : ?>
 						<?php foreach ( $logs as $log ) : ?>
@@ -1334,11 +1399,12 @@ class Oli_CJ_Admin {
 								<td><?php echo esc_html( ucfirst( $log->event_type ) ); ?></td>
 								<td><?php echo esc_html( number_format( $log->duration, 4 ) ); ?>s</td>
 								<td>
-									<?php if ( ! empty( $log->error_message ) ) : ?>
-										<span class="oli-cj-status-error"><?php echo esc_html( $log->error_message ); ?></span>
-									<?php else : ?>
-										<span class="oli-cj-status-success"><?php echo esc_html__( 'Success', 'oli-cron-jobs' ); ?></span>
-									<?php endif; ?>
+									<?php
+									self::print_status(
+										! empty( $log->error_message ) ? 'error' : 'ok',
+										! empty( $log->error_message ) ? $log->error_message : __( 'Success', 'oli-cron-jobs' )
+									);
+									?>
 								</td>
 							</tr>
 						<?php endforeach; ?>
@@ -1394,10 +1460,10 @@ class Oli_CJ_Admin {
 					<th scope="row"><?php echo esc_html__( 'WP-Cron Status', 'oli-cron-jobs' ); ?></th>
 					<td>
 						<?php if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) : ?>
-							<span class="oli-cj-status-disabled"><?php echo esc_html__( 'Disabled (DISABLE_WP_CRON)', 'oli-cron-jobs' ); ?></span>
+							<?php self::print_status( 'disabled', __( 'Disabled (DISABLE_WP_CRON)', 'oli-cron-jobs' ) ); ?>
 							<p class="description"><?php echo esc_html__( 'WP-Cron is disabled. Make sure you have a server cron job configured.', 'oli-cron-jobs' ); ?></p>
 						<?php else : ?>
-							<span class="oli-cj-status-success"><?php echo esc_html__( 'Enabled', 'oli-cron-jobs' ); ?></span>
+							<?php self::print_status( 'ok', __( 'Enabled', 'oli-cron-jobs' ) ); ?>
 						<?php endif; ?>
 					</td>
 				</tr>
@@ -1405,10 +1471,10 @@ class Oli_CJ_Admin {
 					<th scope="row"><?php echo esc_html__( 'Alternate WP-Cron', 'oli-cron-jobs' ); ?></th>
 					<td>
 						<?php if ( defined( 'ALTERNATE_WP_CRON' ) && ALTERNATE_WP_CRON ) : ?>
-							<span class="oli-cj-status-warning"><?php echo esc_html__( 'Enabled (ALTERNATE_WP_CRON)', 'oli-cron-jobs' ); ?></span>
+							<?php self::print_status( 'warning', __( 'Enabled (ALTERNATE_WP_CRON)', 'oli-cron-jobs' ) ); ?>
 							<p class="description"><?php echo esc_html__( 'WordPress redirects visitors to spawn cron. This can be unreliable on some hosts.', 'oli-cron-jobs' ); ?></p>
 						<?php else : ?>
-							<span class="oli-cj-status-success"><?php echo esc_html__( 'Off', 'oli-cron-jobs' ); ?></span>
+							<?php self::print_status( 'off', __( 'Off', 'oli-cron-jobs' ) ); ?>
 						<?php endif; ?>
 					</td>
 				</tr>
@@ -1437,7 +1503,8 @@ class Oli_CJ_Admin {
 			<form method="post" action="" enctype="multipart/form-data">
 				<?php wp_nonce_field( 'oli_cj_import' ); ?>
 				<p>
-					<input type="file" name="import_file" accept=".json" required />
+					<label for="oli-cj-import-file"><?php echo esc_html__( 'JSON file to import', 'oli-cron-jobs' ); ?></label><br />
+					<input type="file" name="import_file" id="oli-cj-import-file" accept=".json" required />
 				</p>
 				<p>
 					<input type="submit" name="oli_cj_import" class="button button-secondary" value="<?php echo esc_attr__( 'Import Data', 'oli-cron-jobs' ); ?>" />

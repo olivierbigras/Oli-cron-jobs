@@ -5,7 +5,7 @@ Tags: cron, scheduled-tasks, cron-manager, debugging, tasks
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.2
+Stable tag: 0.2.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -118,6 +118,11 @@ This feature is unused until a URL event is created.
 
 == Changelog ==
 
+= 0.2.3 =
+* Status text now meets WCAG AA contrast and includes an icon so status is not color-only
+* Added accessible labels for event filters, row checkboxes, and the import file field
+* Neutral color for Alternate WP-Cron "Off", clearer empty logs and search states, and wrap-friendly hook names
+
 = 0.2.2 =
 * Hidden Edit Cron Event screen now sets a page title so PHP 8.4 no longer deprecates strip_tags(null) on that page
 
@@ -160,6 +165,9 @@ This feature is unused until a URL event is created.
 * Initial release
 
 == Upgrade Notice ==
+
+= 0.2.3 =
+Accessibility: status contrast, labels on filters and checkboxes, and clearer empty states.
 
 = 0.2.2 =
 Fixes a PHP 8.4 deprecation on the hidden Edit Cron Event screen.

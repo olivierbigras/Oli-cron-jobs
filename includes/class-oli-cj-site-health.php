@@ -323,13 +323,7 @@ class Oli_CJ_Site_Health {
 	public static function get_issues() {
 		$issues = array();
 
-		// Check if WP-Cron is disabled.
-		if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) {
-			$issues[] = array(
-				'type'    => 'warning',
-				'message' => __( 'WP-Cron is disabled via DISABLE_WP_CRON. Make sure you have a server cron job configured.', 'oli-cron-jobs' ),
-			);
-		}
+		$cron_disabled = defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON;
 
 		if ( defined( 'ALTERNATE_WP_CRON' ) && ALTERNATE_WP_CRON ) {
 			$issues[] = array(
@@ -338,11 +332,30 @@ class Oli_CJ_Site_Health {
 			);
 		}
 
-		// Check for missed events.
 		$instance = self::get_instance();
 		$missed   = $instance->get_missed_events();
-		if ( ! empty( $missed ) ) {
-			$count    = count( $missed );
+		$count    = count( $missed );
+
+		if ( $cron_disabled && $count > 0 ) {
+			$issues[] = array(
+				'type'    => 'warning',
+				'message' => sprintf(
+					/* translators: %d: number of overdue events */
+					_n(
+						'WP-Cron is disabled (DISABLE_WP_CRON): %d event is overdue. Check the server cron job.',
+						'WP-Cron is disabled (DISABLE_WP_CRON): %d events are overdue. Check the server cron job.',
+						$count,
+						'oli-cron-jobs'
+					),
+					$count
+				),
+			);
+		} elseif ( $cron_disabled ) {
+			$issues[] = array(
+				'type'    => 'warning',
+				'message' => __( 'WP-Cron is disabled via DISABLE_WP_CRON. Make sure you have a server cron job configured.', 'oli-cron-jobs' ),
+			);
+		} elseif ( $count > 0 ) {
 			$issues[] = array(
 				'type'    => 'error',
 				'message' => sprintf(

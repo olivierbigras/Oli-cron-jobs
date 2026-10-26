@@ -49,7 +49,8 @@ class Oli_CJ_List_Table extends WP_List_Table {
 		$schedules = Oli_CJ_Schedule_Manager::get_all_schedules();
 		?>
 		<div class="alignleft actions">
-			<select name="status_filter">
+			<label for="oli-cj-status-filter" class="screen-reader-text"><?php echo esc_html__( 'Filter by status', 'oli-cron-jobs' ); ?></label>
+			<select name="status_filter" id="oli-cj-status-filter">
 				<option value=""><?php echo esc_html__( 'All Statuses', 'oli-cron-jobs' ); ?></option>
 				<option value="scheduled" <?php selected( $status_filter, 'scheduled' ); ?>><?php echo esc_html__( 'Scheduled', 'oli-cron-jobs' ); ?></option>
 				<option value="late" <?php selected( $status_filter, 'late' ); ?>><?php echo esc_html__( 'Late', 'oli-cron-jobs' ); ?></option>
@@ -57,7 +58,8 @@ class Oli_CJ_List_Table extends WP_List_Table {
 				<option value="paused" <?php selected( $status_filter, 'paused' ); ?>><?php echo esc_html__( 'Paused', 'oli-cron-jobs' ); ?></option>
 			</select>
 
-			<select name="schedule_filter">
+			<label for="oli-cj-schedule-filter" class="screen-reader-text"><?php echo esc_html__( 'Filter by schedule', 'oli-cron-jobs' ); ?></label>
+			<select name="schedule_filter" id="oli-cj-schedule-filter">
 				<option value=""><?php echo esc_html__( 'All Schedules', 'oli-cron-jobs' ); ?></option>
 				<option value="single" <?php selected( $schedule_filter, 'single' ); ?>><?php echo esc_html__( 'Single Events', 'oli-cron-jobs' ); ?></option>
 				<?php foreach ( $schedules as $name => $schedule ) : ?>
@@ -67,7 +69,8 @@ class Oli_CJ_List_Table extends WP_List_Table {
 				<?php endforeach; ?>
 			</select>
 
-			<select name="type_filter">
+			<label for="oli-cj-type-filter" class="screen-reader-text"><?php echo esc_html__( 'Filter by type', 'oli-cron-jobs' ); ?></label>
+			<select name="type_filter" id="oli-cj-type-filter">
 				<option value=""><?php echo esc_html__( 'All Types', 'oli-cron-jobs' ); ?></option>
 				<option value="noaction" <?php selected( $type_filter, 'noaction' ); ?>><?php echo esc_html__( 'Events with no action', 'oli-cron-jobs' ); ?></option>
 				<option value="core" <?php selected( $type_filter, 'core' ); ?>><?php echo esc_html__( 'WordPress Core', 'oli-cron-jobs' ); ?></option>
@@ -322,8 +325,18 @@ class Oli_CJ_List_Table extends WP_List_Table {
 	 * @return string
 	 */
 	protected function column_cb( $item ) {
+		$checkbox_id = 'cb-select-' . md5( $item['hook'] . '|' . $item['timestamp'] . '|' . $item['sig'] );
+
 		return sprintf(
-			'<input type="checkbox" name="event[]" value="%s" />',
+			'<label class="screen-reader-text" for="%1$s">%2$s</label><input type="checkbox" id="%1$s" name="event[]" value="%3$s" />',
+			esc_attr( $checkbox_id ),
+			esc_html(
+				sprintf(
+					/* translators: %s: cron hook name */
+					__( 'Select %s', 'oli-cron-jobs' ),
+					$item['hook']
+				)
+			),
 			esc_attr( $item['hook'] . '|' . $item['timestamp'] . '|' . $item['sig'] )
 		);
 	}
@@ -335,8 +348,6 @@ class Oli_CJ_List_Table extends WP_List_Table {
 	 * @return string
 	 */
 	protected function column_hook( $item ) {
-		$hook = esc_html( $item['hook'] );
-
 		$actions = array();
 
 		$nonce = wp_create_nonce( 'oli_cj_action' );
@@ -383,7 +394,7 @@ class Oli_CJ_List_Table extends WP_List_Table {
 			}
 		}
 
-		return sprintf( '<code>%s</code>%s', $hook, $this->row_actions( $actions ) );
+		return sprintf( '<code>%s</code>%s', $this->breakable_code( $item['hook'] ), $this->row_actions( $actions ) );
 	}
 
 	/**
@@ -479,7 +490,7 @@ class Oli_CJ_List_Table extends WP_List_Table {
 		foreach ( $callbacks as $callback ) {
 			$output[] = sprintf(
 				'<code>%s</code> <small>(priority: %d)</small><br><small>%s</small>',
-				esc_html( $callback['function'] ),
+				$this->breakable_code( $callback['function'] ),
 				absint( $callback['priority'] ),
 				esc_html( $callback['source'] )
 			);
@@ -497,18 +508,51 @@ class Oli_CJ_List_Table extends WP_List_Table {
 	protected function column_status( $item ) {
 		$status = Oli_CJ_Cron_Manager::get_event_status( $item );
 		$labels = array(
-			'scheduled'      => array( 'oli-cj-status-scheduled', __( 'Scheduled', 'oli-cron-jobs' ) ),
-			'late'           => array( 'oli-cj-status-warning', __( 'Late', 'oli-cron-jobs' ) ),
-			'missed'         => array( 'oli-cj-status-overdue', __( 'Missed', 'oli-cron-jobs' ) ),
-			'paused'         => array( 'oli-cj-status-paused', __( 'Paused', 'oli-cron-jobs' ) ),
-			'needs_checking' => array( 'oli-cj-status-warning', __( 'Needs checking', 'oli-cron-jobs' ) ),
+			'scheduled'      => array( 'ok', __( 'Scheduled', 'oli-cron-jobs' ) ),
+			'late'           => array( 'warning', __( 'Late', 'oli-cron-jobs' ) ),
+			'missed'         => array( 'error', __( 'Missed', 'oli-cron-jobs' ) ),
+			'paused'         => array( 'paused', __( 'Paused', 'oli-cron-jobs' ) ),
+			'needs_checking' => array( 'warning', __( 'Needs checking', 'oli-cron-jobs' ) ),
 		);
 
 		if ( ! isset( $labels[ $status ] ) ) {
 			$status = 'scheduled';
 		}
 
-		return '<span class="' . esc_attr( $labels[ $status ][0] ) . '">' . esc_html( $labels[ $status ][1] ) . '</span>';
+		return Oli_CJ_Admin::status_markup( $labels[ $status ][0], $labels[ $status ][1] );
+	}
+
+	/**
+	 * Escape code and allow wraps after underscores and object operators.
+	 *
+	 * @param string $text Raw code text.
+	 * @return string
+	 */
+	private function breakable_code( $text ) {
+		$escaped = esc_html( (string) $text );
+		return str_replace( array( '_', '-&gt;' ), array( '_<wbr>', '-&gt;<wbr>' ), $escaped );
+	}
+
+	/**
+	 * Empty-state text, including a search-specific message.
+	 */
+	public function no_items() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only search query.
+		$search = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
+
+		if ( '' !== $search ) {
+			echo esc_html(
+				sprintf(
+					/* translators: %s: search query */
+					__( 'No events match "%s".', 'oli-cron-jobs' ),
+					$search
+				)
+			);
+			echo ' <a href="' . esc_url( admin_url( 'tools.php?page=oli-cron-jobs' ) ) . '">' . esc_html__( 'Clear search', 'oli-cron-jobs' ) . '</a>';
+			return;
+		}
+
+		echo esc_html__( 'No cron events found.', 'oli-cron-jobs' );
 	}
 
 	/**

@@ -54,7 +54,7 @@ class Oli_CJ_Notices {
 		foreach ( $issues as $issue ) {
 			$class = 'error' === $issue['type'] ? 'notice-error' : 'notice-warning';
 			printf(
-				'<div class="notice %s"><p><strong>%s:</strong> %s</p></div>',
+				'<div class="notice %s is-dismissible"><p><strong>%s:</strong> %s</p></div>',
 				esc_attr( $class ),
 				esc_html__( 'Oli Cron Jobs', 'oli-cron-jobs' ),
 				esc_html( $issue['message'] )

@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-10-26
+
+### Fixed
+- Status badges meet WCAG AA contrast (≥ 4.5:1) on admin backgrounds and include Dashicons so status is not color-only
+- Event list filters, row checkboxes, and the import file field have accessible labels
+- Alternate WP-Cron "Off" uses a neutral color instead of success green
+- Empty logs explain retention and disable Clear All Logs; empty search results name the query
+- Hook and callback columns wrap on `_` / `->` and use wider widths
+- DISABLE_WP_CRON and overdue admin notices are merged into one dismissible notice
+
 ## [0.2.2] - 2026-10-26
 
 ### Fixed
@@ -108,6 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release of Oli Cron Jobs
 
+[0.2.3]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.3
 [0.2.2]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.2
 [0.2.1]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.1
 [0.2.0]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.0
