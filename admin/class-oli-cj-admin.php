@@ -1438,6 +1438,8 @@ class Oli_CJ_Admin {
 		<div class="wrap">
 			<h1><?php echo esc_html__( 'Cron Settings', 'oli-cron-jobs' ); ?></h1>
 
+			<?php $this->render_messages(); ?>
+
 			<form method="post" action="">
 				<?php wp_nonce_field( 'oli_cj_settings' ); ?>
 				<table class="form-table">
