@@ -95,20 +95,17 @@ class Oli_CJ_Cron_Manager {
 	}
 
 	/**
-	 * Register handlers for URL events.
-	 *
-	 * Stored PHP events from earlier versions stay in the options table
-	 * and in the events list, but they are never executed.
+	 * Register handlers for URL and PHP events.
 	 */
 	public static function register_event_handlers() {
 		$url_events = self::get_plugin_option( 'oli_cj_url_events', array() );
-		if ( ! is_array( $url_events ) ) {
-			return;
+		if ( is_array( $url_events ) ) {
+			foreach ( array_keys( $url_events ) as $hook ) {
+				self::register_url_event_handler( $hook );
+			}
 		}
 
-		foreach ( array_keys( $url_events ) as $hook ) {
-			self::register_url_event_handler( $hook );
-		}
+		Oli_CJ_PHP_Events::register_handlers();
 	}
 
 	/**
@@ -193,54 +190,47 @@ class Oli_CJ_Cron_Manager {
 	}
 
 	/**
-	 * PHP events are no longer created or executed.
+	 * Whether stored PHP events may be executed.
 	 *
-	 * @return bool Always false.
+	 * @return bool
 	 */
 	public static function can_execute_php_events() {
-		return false;
+		return Oli_CJ_PHP_Events::can_execute();
 	}
 
 	/**
-	 * Get all stored PHP events from earlier plugin versions.
-	 *
-	 * Data is kept for display and export. The stored code is never executed.
+	 * Get all stored PHP events.
 	 *
 	 * @return array
 	 */
 	public static function get_php_events() {
-		$php_events = self::get_plugin_option( 'oli_cj_php_events', array() );
-		return is_array( $php_events ) ? $php_events : array();
+		return Oli_CJ_PHP_Events::get_all();
 	}
 
 	/**
-	 * Whether any legacy PHP events are still stored.
+	 * Whether any PHP events are stored.
 	 *
 	 * @return bool
 	 */
 	public static function has_legacy_php_events() {
-		return ! empty( self::get_php_events() );
+		return Oli_CJ_PHP_Events::has_any();
 	}
 
 	/**
-	 * Whether a hook is a stored PHP event from an earlier version.
+	 * Whether a hook is a stored PHP event.
 	 *
 	 * @param string $hook Hook name.
 	 * @return bool
 	 */
 	public static function is_php_event( $hook ) {
-		return false !== self::get_php_code( $hook );
+		return Oli_CJ_PHP_Events::is_php_event( $hook );
 	}
 
 	/**
-	 * Pause stored PHP events so they appear disabled. Does not delete data.
+	 * Kept for upgrades. PHP events are no longer auto-paused.
 	 */
 	public static function disable_legacy_php_events() {
-		foreach ( array_keys( self::get_php_events() ) as $hook ) {
-			if ( is_string( $hook ) && '' !== $hook ) {
-				self::pause_hook( $hook );
-			}
-		}
+		// No-op: PHP events are supported again and keep their pause state.
 	}
 
 	/**
@@ -425,6 +415,7 @@ class Oli_CJ_Cron_Manager {
 
 		$args = $crons[ $timestamp ][ $hook ][ $sig ]['args'];
 		wp_unschedule_event( $timestamp, $hook, $args );
+		self::maybe_cleanup_hook( $hook );
 
 		return true;
 	}
@@ -445,12 +436,14 @@ class Oli_CJ_Cron_Manager {
 
 		foreach ( $crons as $timestamp => $cron ) {
 			if ( isset( $cron[ $hook ] ) ) {
-				foreach ( $cron[ $hook ] as $sig => $data ) {
+				foreach ( $cron[ $hook ] as $data ) {
 					wp_unschedule_event( $timestamp, $hook, $data['args'] );
 					++$count;
 				}
 			}
 		}
+
+		self::maybe_cleanup_hook( $hook );
 
 		return $count;
 	}
@@ -463,13 +456,13 @@ class Oli_CJ_Cron_Manager {
 	 * @return mixed Result of the action.
 	 */
 	public static function run_event_now( $hook, $args = array() ) {
-		if ( self::is_php_event( $hook ) ) {
-			Oli_CJ_Logger::log_event( $hook, $args, 'blocked', 0, 'PHP events are no longer supported' );
+		if ( self::is_hook_paused( $hook ) ) {
+			Oli_CJ_Logger::log_event( $hook, $args, 'blocked', 0, 'Hook is paused' );
 			return false;
 		}
 
-		if ( self::is_hook_paused( $hook ) ) {
-			Oli_CJ_Logger::log_event( $hook, $args, 'blocked', 0, 'Hook is paused' );
+		if ( self::is_php_event( $hook ) && ! Oli_CJ_PHP_Events::can_execute() ) {
+			Oli_CJ_Logger::log_event( $hook, $args, 'blocked', 0, 'PHP events are disabled' );
 			return false;
 		}
 
@@ -481,7 +474,10 @@ class Oli_CJ_Cron_Manager {
 
 		$duration = microtime( true ) - $start_time;
 
-		// Log the execution.
+		if ( self::is_php_event( $hook ) || false !== self::get_url( $hook ) ) {
+			return true;
+		}
+
 		Oli_CJ_Logger::log_event( $hook, $args, 'manual', $duration );
 
 		return true;
@@ -523,6 +519,10 @@ class Oli_CJ_Cron_Manager {
 		$callbacks = array();
 		foreach ( $wp_filter[ $hook ]->callbacks as $priority => $functions ) {
 			foreach ( $functions as $function ) {
+				if ( self::is_internal_callback( $function['function'] ) ) {
+					continue;
+				}
+
 				$source        = self::get_callback_source( $function['function'] );
 				$callback_info = array(
 					'priority'      => $priority,
@@ -764,35 +764,86 @@ class Oli_CJ_Cron_Manager {
 	}
 
 	/**
-	 * Get stored PHP code for a legacy hook.
-	 *
-	 * The code is never executed. It is kept so existing events stay listed.
+	 * Get stored PHP code for a hook.
 	 *
 	 * @param string $hook Hook name.
 	 * @return string|false
 	 */
 	public static function get_php_code( $hook ) {
-		$php_events = self::get_php_events();
-		return isset( $php_events[ $hook ] ) ? $php_events[ $hook ] : false;
+		return Oli_CJ_PHP_Events::get_code( $hook );
+	}
+
+	/**
+	 * Add a PHP cron event.
+	 *
+	 * @param string $hook      Hook name.
+	 * @param int    $timestamp Timestamp.
+	 * @param string $code      PHP code.
+	 * @param array  $args      Arguments.
+	 * @param string $schedule  Schedule name.
+	 * @return bool
+	 */
+	public static function add_php_event( $hook, $timestamp, $code, $args = array(), $schedule = false ) {
+		Oli_CJ_PHP_Events::save_code( $hook, $code );
+		Oli_CJ_PHP_Events::register_handler( $hook );
+
+		return self::add_event( $hook, $timestamp, $args, $schedule );
 	}
 
 	/**
 	 * Add a URL cron event
 	 *
-	 * @param string $hook Hook name.
-	 * @param int    $timestamp Timestamp.
+	 * @param string $hook Event hook.
+	 * @param int    $timestamp Event timestamp.
 	 * @param string $url URL to request.
-	 * @param array  $args Arguments.
-	 * @param string $schedule Schedule name.
+	 * @param array  $args Event arguments.
+	 * @param string $schedule Schedule name (false for single event).
 	 * @return bool
 	 */
 	public static function add_url_event( $hook, $timestamp, $url, $args = array(), $schedule = false ) {
 		$url_events          = self::get_plugin_option( 'oli_cj_url_events', array() );
-		$url_events[ $hook ] = $url;
+		$url_events[ $hook ] = array(
+			'url'  => esc_url_raw( $url ),
+			'hash' => self::hash_url( $url ),
+		);
 		self::update_plugin_option( 'oli_cj_url_events', $url_events );
 		self::register_url_event_handler( $hook );
 
 		return self::add_event( $hook, $timestamp, $args, $schedule );
+	}
+
+	/**
+	 * HMAC for a URL event destination.
+	 *
+	 * @param string $url URL.
+	 * @return string
+	 */
+	public static function hash_url( $url ) {
+		return hash_hmac( 'sha256', (string) $url, wp_salt( 'auth' ) );
+	}
+
+	/**
+	 * Normalize a stored URL event entry.
+	 *
+	 * @param mixed $raw Stored value.
+	 * @return array|false
+	 */
+	public static function normalize_url_entry( $raw ) {
+		if ( is_string( $raw ) && '' !== $raw ) {
+			return array(
+				'url'  => $raw,
+				'hash' => '',
+			);
+		}
+
+		if ( is_array( $raw ) && ! empty( $raw['url'] ) ) {
+			return array(
+				'url'  => (string) $raw['url'],
+				'hash' => isset( $raw['hash'] ) ? (string) $raw['hash'] : '',
+			);
+		}
+
+		return false;
 	}
 
 	/**
@@ -803,7 +854,32 @@ class Oli_CJ_Cron_Manager {
 	 */
 	public static function get_url( $hook ) {
 		$url_events = self::get_plugin_option( 'oli_cj_url_events', array() );
-		return isset( $url_events[ $hook ] ) ? $url_events[ $hook ] : false;
+		if ( ! isset( $url_events[ $hook ] ) ) {
+			return false;
+		}
+
+		$entry = self::normalize_url_entry( $url_events[ $hook ] );
+		return $entry ? $entry['url'] : false;
+	}
+
+	/**
+	 * Whether a URL event failed its integrity check.
+	 *
+	 * @param string $hook Hook name.
+	 * @return bool
+	 */
+	public static function url_needs_checking( $hook ) {
+		$url_events = self::get_plugin_option( 'oli_cj_url_events', array() );
+		if ( ! isset( $url_events[ $hook ] ) ) {
+			return false;
+		}
+
+		$entry = self::normalize_url_entry( $url_events[ $hook ] );
+		if ( ! $entry || '' === $entry['hash'] ) {
+			return false;
+		}
+
+		return ! hash_equals( $entry['hash'], self::hash_url( $entry['url'] ) );
 	}
 
 	/**
@@ -813,6 +889,11 @@ class Oli_CJ_Cron_Manager {
 	 */
 	public static function execute_url_event( $hook ) {
 		if ( self::is_hook_paused( $hook ) ) {
+			return;
+		}
+
+		if ( self::url_needs_checking( $hook ) ) {
+			Oli_CJ_Logger::log_event( $hook, array(), 'blocked', 0, 'URL event failed the integrity check' );
 			return;
 		}
 
@@ -830,5 +911,190 @@ class Oli_CJ_Cron_Manager {
 			$duration = microtime( true ) - $start_time;
 			Oli_CJ_Logger::log_event( $hook, array(), 'url', $duration, $error );
 		}
+	}
+
+	/**
+	 * Whether a callback is an internal pause/URL/PHP helper.
+	 *
+	 * @param mixed $callback Callback.
+	 * @return bool
+	 */
+	private static function is_internal_callback( $callback ) {
+		if ( ! is_array( $callback ) || ! isset( $callback[1] ) ) {
+			return false;
+		}
+
+		$internal = array(
+			'block_paused_execution',
+			'execute_url_event_wrapper',
+			'execute_wrapper',
+		);
+
+		return in_array( $callback[1], $internal, true );
+	}
+
+	/**
+	 * Whether an event has any non-internal action callbacks.
+	 *
+	 * @param string $hook Hook name.
+	 * @return bool
+	 */
+	public static function event_has_action( $hook ) {
+		if ( self::is_php_event( $hook ) || false !== self::get_url( $hook ) ) {
+			return true;
+		}
+
+		return ! empty( self::get_hook_callbacks( $hook ) );
+	}
+
+	/**
+	 * Whether an event is late (due, but within the 10-minute window).
+	 *
+	 * @param int $timestamp Event timestamp.
+	 * @return bool
+	 */
+	public static function is_event_late( $timestamp ) {
+		$now = time();
+		return $timestamp < $now && $timestamp >= ( $now - 600 );
+	}
+
+	/**
+	 * Whether an event is missed (more than 10 minutes overdue).
+	 *
+	 * @param int $timestamp Event timestamp.
+	 * @return bool
+	 */
+	public static function is_event_missed( $timestamp ) {
+		return $timestamp < ( time() - 600 );
+	}
+
+	/**
+	 * Status slug for an event.
+	 *
+	 * @param array $event Event data.
+	 * @return string
+	 */
+	public static function get_event_status( $event ) {
+		if ( self::is_php_event( $event['hook'] ) && Oli_CJ_PHP_Events::needs_checking( $event['hook'] ) ) {
+			return 'needs_checking';
+		}
+
+		if ( self::url_needs_checking( $event['hook'] ) ) {
+			return 'needs_checking';
+		}
+
+		if ( self::is_hook_paused( $event['hook'] ) ) {
+			return 'paused';
+		}
+
+		if ( self::is_event_missed( $event['timestamp'] ) ) {
+			return 'missed';
+		}
+
+		if ( self::is_event_late( $event['timestamp'] ) ) {
+			return 'late';
+		}
+
+		return 'scheduled';
+	}
+
+	/**
+	 * Parse a datetime-local value in the site timezone.
+	 *
+	 * @param string $raw Datetime string.
+	 * @return int|false
+	 */
+	public static function parse_site_datetime( $raw ) {
+		if ( ! is_string( $raw ) || '' === $raw ) {
+			return false;
+		}
+
+		$datetime = date_create( $raw, wp_timezone() );
+		return $datetime ? $datetime->getTimestamp() : false;
+	}
+
+	/**
+	 * Format a timestamp for a datetime-local input in the site timezone.
+	 *
+	 * @param int $timestamp Unix timestamp.
+	 * @return string
+	 */
+	public static function format_site_datetime_input( $timestamp ) {
+		$datetime = new DateTime( '@' . absint( $timestamp ) );
+		$datetime->setTimezone( wp_timezone() );
+		return $datetime->format( 'Y-m-d\TH:i' );
+	}
+
+	/**
+	 * Format a timestamp in the site timezone.
+	 *
+	 * @param int $timestamp Unix timestamp.
+	 * @return string
+	 */
+	public static function format_site_datetime( $timestamp ) {
+		return get_date_from_gmt(
+			gmdate( 'Y-m-d H:i:s', absint( $timestamp ) ),
+			get_option( 'date_format' ) . ' ' . get_option( 'time_format' )
+		);
+	}
+
+	/**
+	 * Format a timestamp in UTC.
+	 *
+	 * @param int $timestamp Unix timestamp.
+	 * @return string
+	 */
+	public static function format_utc_datetime( $timestamp ) {
+		return gmdate( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), absint( $timestamp ) );
+	}
+
+	/**
+	 * Remove stored URL/PHP data when a hook is no longer scheduled.
+	 *
+	 * @param string $hook Hook name.
+	 */
+	public static function maybe_cleanup_hook( $hook ) {
+		foreach ( self::get_all_events() as $event ) {
+			if ( $event['hook'] === $hook ) {
+				return;
+			}
+		}
+
+		$url_events = self::get_plugin_option( 'oli_cj_url_events', array() );
+		if ( isset( $url_events[ $hook ] ) ) {
+			unset( $url_events[ $hook ] );
+			self::update_plugin_option( 'oli_cj_url_events', $url_events );
+		}
+
+		Oli_CJ_PHP_Events::delete_code( $hook );
+	}
+
+	/**
+	 * Rows for a CSV export of cron events.
+	 *
+	 * @param array $events Event list.
+	 * @return array
+	 */
+	public static function get_csv_rows( $events ) {
+		$rows = array();
+
+		foreach ( $events as $event ) {
+			$callbacks = array();
+			foreach ( self::get_hook_callbacks( $event['hook'] ) as $callback ) {
+				$callbacks[] = $callback['function'];
+			}
+
+			$rows[] = array(
+				'hook'          => $event['hook'],
+				'args'          => wp_json_encode( $event['args'] ),
+				'next_run_site' => self::format_site_datetime( $event['timestamp'] ),
+				'next_run_utc'  => self::format_utc_datetime( $event['timestamp'] ),
+				'recurrence'    => $event['schedule'] ? Oli_CJ_Schedule_Manager::get_schedule_display( $event['schedule'] ) : __( 'Non-repeating', 'oli-cron-jobs' ),
+				'callbacks'     => implode( '; ', $callbacks ),
+				'status'        => self::get_event_status( $event ),
+			);
+		}
+
+		return $rows;
 	}
 }

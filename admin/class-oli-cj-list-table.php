@@ -52,7 +52,8 @@ class Oli_CJ_List_Table extends WP_List_Table {
 			<select name="status_filter">
 				<option value=""><?php echo esc_html__( 'All Statuses', 'oli-cron-jobs' ); ?></option>
 				<option value="scheduled" <?php selected( $status_filter, 'scheduled' ); ?>><?php echo esc_html__( 'Scheduled', 'oli-cron-jobs' ); ?></option>
-				<option value="overdue" <?php selected( $status_filter, 'overdue' ); ?>><?php echo esc_html__( 'Overdue', 'oli-cron-jobs' ); ?></option>
+				<option value="late" <?php selected( $status_filter, 'late' ); ?>><?php echo esc_html__( 'Late', 'oli-cron-jobs' ); ?></option>
+				<option value="missed" <?php selected( $status_filter, 'missed' ); ?>><?php echo esc_html__( 'Missed', 'oli-cron-jobs' ); ?></option>
 				<option value="paused" <?php selected( $status_filter, 'paused' ); ?>><?php echo esc_html__( 'Paused', 'oli-cron-jobs' ); ?></option>
 			</select>
 
@@ -68,11 +69,12 @@ class Oli_CJ_List_Table extends WP_List_Table {
 
 			<select name="type_filter">
 				<option value=""><?php echo esc_html__( 'All Types', 'oli-cron-jobs' ); ?></option>
+				<option value="noaction" <?php selected( $type_filter, 'noaction' ); ?>><?php echo esc_html__( 'Events with no action', 'oli-cron-jobs' ); ?></option>
 				<option value="core" <?php selected( $type_filter, 'core' ); ?>><?php echo esc_html__( 'WordPress Core', 'oli-cron-jobs' ); ?></option>
-				<option value="plugin" <?php selected( $type_filter, 'plugin' ); ?>><?php echo esc_html__( 'Plugin', 'oli-cron-jobs' ); ?></option>
 				<option value="custom" <?php selected( $type_filter, 'custom' ); ?>><?php echo esc_html__( 'Custom', 'oli-cron-jobs' ); ?></option>
-				<option value="url" <?php selected( $type_filter, 'url' ); ?>><?php echo esc_html__( 'URL Events', 'oli-cron-jobs' ); ?></option>
 				<option value="php" <?php selected( $type_filter, 'php' ); ?>><?php echo esc_html__( 'PHP Events', 'oli-cron-jobs' ); ?></option>
+				<option value="url" <?php selected( $type_filter, 'url' ); ?>><?php echo esc_html__( 'URL Events', 'oli-cron-jobs' ); ?></option>
+				<option value="plugin" <?php selected( $type_filter, 'plugin' ); ?>><?php echo esc_html__( 'Plugin', 'oli-cron-jobs' ); ?></option>
 			</select>
 
 			<input type="submit" class="button" value="<?php echo esc_attr__( 'Filter', 'oli-cron-jobs' ); ?>" />
@@ -142,18 +144,10 @@ class Oli_CJ_List_Table extends WP_List_Table {
 		// Filter by status.
 		if ( isset( $_REQUEST['status_filter'] ) && ! empty( $_REQUEST['status_filter'] ) ) {
 			$status_filter = sanitize_text_field( wp_unslash( $_REQUEST['status_filter'] ) );
-			$current_time  = time();
 			$events        = array_filter(
 				$events,
-				function ( $event ) use ( $status_filter, $current_time ) {
-					if ( 'overdue' === $status_filter ) {
-						return $event['timestamp'] < ( $current_time - 600 );
-					} elseif ( 'paused' === $status_filter ) {
-						return Oli_CJ_Cron_Manager::is_hook_paused( $event['hook'] );
-					} elseif ( 'scheduled' === $status_filter ) {
-						return $event['timestamp'] >= $current_time && ! Oli_CJ_Cron_Manager::is_hook_paused( $event['hook'] );
-					}
-					return true;
+				function ( $event ) use ( $status_filter ) {
+					return Oli_CJ_Cron_Manager::get_event_status( $event ) === $status_filter;
 				}
 			);
 		}
@@ -179,6 +173,10 @@ class Oli_CJ_List_Table extends WP_List_Table {
 			$events      = array_filter(
 				$events,
 				function ( $event ) use ( $type_filter ) {
+					if ( 'noaction' === $type_filter ) {
+						return ! Oli_CJ_Cron_Manager::event_has_action( $event['hook'] );
+					}
+
 					return Oli_CJ_Cron_Manager::get_event_kind( $event['hook'] ) === $type_filter;
 				}
 			);
@@ -246,10 +244,75 @@ class Oli_CJ_List_Table extends WP_List_Table {
 
 		foreach ( $packed_events as $packed ) {
 			$parts = explode( '|', $packed );
-			if ( 3 === count( $parts ) ) {
-				Oli_CJ_Cron_Manager::delete_event( $parts[0], absint( $parts[1] ), $parts[2] );
+			if ( 3 !== count( $parts ) ) {
+				continue;
+			}
+
+			if ( Oli_CJ_Cron_Manager::is_php_event( $parts[0] ) && ! Oli_CJ_PHP_Events::can_manage() ) {
+				continue;
+			}
+
+			Oli_CJ_Cron_Manager::delete_event( $parts[0], absint( $parts[1] ), $parts[2] );
+		}
+	}
+
+	/**
+	 * Views for the main event-type filters.
+	 *
+	 * @return array
+	 */
+	protected function get_views() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
+		$current = isset( $_REQUEST['type_filter'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['type_filter'] ) ) : '';
+		$events  = Oli_CJ_Cron_Manager::get_all_events();
+		$counts  = array(
+			'all'      => 0,
+			'noaction' => 0,
+			'core'     => 0,
+			'custom'   => 0,
+			'php'      => 0,
+		);
+
+		foreach ( $events as $event ) {
+			++$counts['all'];
+			if ( ! Oli_CJ_Cron_Manager::event_has_action( $event['hook'] ) ) {
+				++$counts['noaction'];
+			}
+
+			$kind = Oli_CJ_Cron_Manager::get_event_kind( $event['hook'] );
+			if ( isset( $counts[ $kind ] ) ) {
+				++$counts[ $kind ];
 			}
 		}
+
+		$labels = array(
+			'all'      => __( 'All', 'oli-cron-jobs' ),
+			'noaction' => __( 'Events with no action', 'oli-cron-jobs' ),
+			'core'     => __( 'WordPress core', 'oli-cron-jobs' ),
+			'custom'   => __( 'Custom', 'oli-cron-jobs' ),
+			'php'      => __( 'PHP', 'oli-cron-jobs' ),
+		);
+
+		$views = array();
+		foreach ( $labels as $slug => $label ) {
+			$url = add_query_arg(
+				array(
+					'page'        => 'oli-cron-jobs',
+					'type_filter' => 'all' === $slug ? false : $slug,
+				),
+				admin_url( 'tools.php' )
+			);
+
+			$views[ $slug ] = sprintf(
+				'<a href="%s"%s>%s <span class="count">(%d)</span></a>',
+				esc_url( $url ),
+				( ( 'all' === $slug && '' === $current ) || $current === $slug ) ? ' class="current" aria-current="page"' : '',
+				esc_html( $label ),
+				absint( $counts[ $slug ] )
+			);
+		}
+
+		return $views;
 	}
 
 	/**
@@ -278,9 +341,12 @@ class Oli_CJ_List_Table extends WP_List_Table {
 
 		$nonce = wp_create_nonce( 'oli_cj_action' );
 
-		$is_php_event = Oli_CJ_Cron_Manager::is_php_event( $item['hook'] );
+		$is_php_event   = Oli_CJ_Cron_Manager::is_php_event( $item['hook'] );
+		$can_manage_php = Oli_CJ_PHP_Events::can_manage();
+		$can_run        = ! $is_php_event || $can_manage_php;
+		$can_mutate     = ! $is_php_event || $can_manage_php;
 
-		if ( ! $is_php_event ) {
+		if ( $can_run ) {
 			$actions['run'] = sprintf(
 				'<a href="%s">%s</a>',
 				esc_url( admin_url( 'tools.php?page=oli-cron-jobs&action=run_now&hook=' . rawurlencode( $item['hook'] ) . '&args=' . rawurlencode( wp_json_encode( $item['args'] ) ) . '&_wpnonce=' . $nonce ) ),
@@ -291,17 +357,17 @@ class Oli_CJ_List_Table extends WP_List_Table {
 		$actions['edit'] = sprintf(
 			'<a href="%s">%s</a>',
 			esc_url( admin_url( 'tools.php?page=oli-cron-jobs-edit&hook=' . rawurlencode( $item['hook'] ) . '&timestamp=' . $item['timestamp'] . '&sig=' . rawurlencode( $item['sig'] ) ) ),
-			$is_php_event ? __( 'View', 'oli-cron-jobs' ) : __( 'Edit', 'oli-cron-jobs' )
+			( $is_php_event && ! $can_manage_php ) ? __( 'View', 'oli-cron-jobs' ) : __( 'Edit', 'oli-cron-jobs' )
 		);
 
-		$actions['delete'] = sprintf(
-			'<a href="%s" class="delete oli-cj-confirm" data-oli-cj-confirm="%s">%s</a>',
-			esc_url( admin_url( 'tools.php?page=oli-cron-jobs&action=delete_event&hook=' . rawurlencode( $item['hook'] ) . '&timestamp=' . $item['timestamp'] . '&sig=' . rawurlencode( $item['sig'] ) . '&_wpnonce=' . $nonce ) ),
-			esc_attr( __( 'Are you sure?', 'oli-cron-jobs' ) ),
-			__( 'Delete', 'oli-cron-jobs' )
-		);
+		if ( $can_mutate ) {
+			$actions['delete'] = sprintf(
+				'<a href="%s" class="delete oli-cj-confirm" data-oli-cj-confirm="%s">%s</a>',
+				esc_url( admin_url( 'tools.php?page=oli-cron-jobs&action=delete_event&hook=' . rawurlencode( $item['hook'] ) . '&timestamp=' . $item['timestamp'] . '&sig=' . rawurlencode( $item['sig'] ) . '&_wpnonce=' . $nonce ) ),
+				esc_attr( __( 'Are you sure?', 'oli-cron-jobs' ) ),
+				__( 'Delete', 'oli-cron-jobs' )
+			);
 
-		if ( ! $is_php_event ) {
 			if ( Oli_CJ_Cron_Manager::is_hook_paused( $item['hook'] ) ) {
 				$actions['resume'] = sprintf(
 					'<a href="%s">%s</a>',
@@ -343,24 +409,36 @@ class Oli_CJ_List_Table extends WP_List_Table {
 	protected function column_next_run( $item ) {
 		$timestamp    = $item['timestamp'];
 		$current_time = time();
-
-		$time_diff = $timestamp - $current_time;
-
-		if ( $time_diff < 0 ) {
-			return sprintf(
-				'<span class="oli-cj-status-overdue">%s</span><br /><small>%s</small>',
-				esc_html( get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $timestamp ), get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ) ),
+		$site_time    = Oli_CJ_Cron_Manager::format_site_datetime( $timestamp );
+		$utc_time     = Oli_CJ_Cron_Manager::format_utc_datetime( $timestamp );
+		$relative     = ( $timestamp < $current_time )
+			? sprintf(
 				/* translators: %s: human-readable time difference */
-				esc_html( sprintf( __( '%s ago', 'oli-cron-jobs' ), human_time_diff( $timestamp, $current_time ) ) )
-			);
-		} else {
-			return sprintf(
-				'%s<br /><small>%s</small>',
-				esc_html( get_date_from_gmt( gmdate( 'Y-m-d H:i:s', $timestamp ), get_option( 'date_format' ) . ' ' . get_option( 'time_format' ) ) ),
+				__( '%s ago', 'oli-cron-jobs' ),
+				human_time_diff( $timestamp, $current_time )
+			)
+			: sprintf(
 				/* translators: %s: human-readable time difference */
-				esc_html( sprintf( __( 'in %s', 'oli-cron-jobs' ), human_time_diff( $current_time, $timestamp ) ) )
+				__( 'in %s', 'oli-cron-jobs' ),
+				human_time_diff( $current_time, $timestamp )
 			);
-		}
+
+		$class = ( $timestamp < $current_time ) ? 'oli-cj-status-overdue' : '';
+
+		return sprintf(
+			'<span class="%1$s">%2$s</span><br /><small>%3$s</small><br /><small>%4$s</small>',
+			esc_attr( $class ),
+			esc_html( $site_time ),
+			esc_html(
+				sprintf(
+					/* translators: 1: UTC datetime, 2: relative time */
+					__( 'UTC: %1$s · %2$s', 'oli-cron-jobs' ),
+					$utc_time,
+					$relative
+				)
+			),
+			esc_html( wp_timezone_string() )
+		);
 	}
 
 	/**
@@ -417,22 +495,20 @@ class Oli_CJ_List_Table extends WP_List_Table {
 	 * @return string
 	 */
 	protected function column_status( $item ) {
-		$current_time = time();
-		$timestamp    = $item['timestamp'];
+		$status = Oli_CJ_Cron_Manager::get_event_status( $item );
+		$labels = array(
+			'scheduled'      => array( 'oli-cj-status-scheduled', __( 'Scheduled', 'oli-cron-jobs' ) ),
+			'late'           => array( 'oli-cj-status-warning', __( 'Late', 'oli-cron-jobs' ) ),
+			'missed'         => array( 'oli-cj-status-overdue', __( 'Missed', 'oli-cron-jobs' ) ),
+			'paused'         => array( 'oli-cj-status-paused', __( 'Paused', 'oli-cron-jobs' ) ),
+			'needs_checking' => array( 'oli-cj-status-warning', __( 'Needs checking', 'oli-cron-jobs' ) ),
+		);
 
-		if ( Oli_CJ_Cron_Manager::is_php_event( $item['hook'] ) ) {
-			return '<span class="oli-cj-status-unsupported">' . esc_html__( 'Unsupported', 'oli-cron-jobs' ) . '</span>';
+		if ( ! isset( $labels[ $status ] ) ) {
+			$status = 'scheduled';
 		}
 
-		if ( Oli_CJ_Cron_Manager::is_hook_paused( $item['hook'] ) ) {
-			return '<span class="oli-cj-status-paused">' . esc_html__( 'Paused', 'oli-cron-jobs' ) . '</span>';
-		}
-
-		if ( $timestamp < ( $current_time - 600 ) ) {
-			return '<span class="oli-cj-status-overdue">' . esc_html__( 'Overdue', 'oli-cron-jobs' ) . '</span>';
-		}
-
-		return '<span class="oli-cj-status-scheduled">' . esc_html__( 'Scheduled', 'oli-cron-jobs' ) . '</span>';
+		return '<span class="' . esc_attr( $labels[ $status ][0] ) . '">' . esc_html( $labels[ $status ][1] ) . '</span>';
 	}
 
 	/**
@@ -443,12 +519,13 @@ class Oli_CJ_List_Table extends WP_List_Table {
 	public function single_row( $item ) {
 		$class = '';
 
-		if ( Oli_CJ_Cron_Manager::is_php_event( $item['hook'] ) ) {
-			$class = 'oli-cj-event-unsupported';
-		} elseif ( Oli_CJ_Cron_Manager::is_hook_paused( $item['hook'] ) ) {
+		$status = Oli_CJ_Cron_Manager::get_event_status( $item );
+		if ( 'paused' === $status || 'needs_checking' === $status ) {
 			$class = 'oli-cj-event-paused';
-		} elseif ( $item['timestamp'] < ( time() - 600 ) ) {
+		} elseif ( 'missed' === $status ) {
 			$class = 'oli-cj-event-overdue';
+		} elseif ( 'late' === $status ) {
+			$class = 'oli-cj-event-late';
 		}
 
 		echo '<tr' . ( $class ? ' class="' . esc_attr( $class ) . '"' : '' ) . '>';

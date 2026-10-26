@@ -93,6 +93,13 @@ class Oli_CJ_Site_Health {
 				'<p>%s</p>',
 				__( 'WP-Cron is disabled via the DISABLE_WP_CRON constant. Make sure you have set up a server cron job to trigger wp-cron.php regularly.', 'oli-cron-jobs' )
 			);
+		} elseif ( defined( 'ALTERNATE_WP_CRON' ) && ALTERNATE_WP_CRON ) {
+			$result['status']      = 'recommended';
+			$result['label']       = __( 'Alternate WP-Cron is enabled', 'oli-cron-jobs' );
+			$result['description'] = sprintf(
+				'<p>%s</p>',
+				__( 'ALTERNATE_WP_CRON is enabled. WordPress will redirect visitors to spawn cron, which can be unreliable on some hosts.', 'oli-cron-jobs' )
+			);
 		}
 
 		return $result;
@@ -290,6 +297,10 @@ class Oli_CJ_Site_Health {
 					'label' => __( 'WP-Cron Disabled', 'oli-cron-jobs' ),
 					'value' => ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) ? __( 'Yes', 'oli-cron-jobs' ) : __( 'No', 'oli-cron-jobs' ),
 				),
+				'alternate_cron'   => array(
+					'label' => __( 'Alternate WP-Cron', 'oli-cron-jobs' ),
+					'value' => ( defined( 'ALTERNATE_WP_CRON' ) && ALTERNATE_WP_CRON ) ? __( 'Yes', 'oli-cron-jobs' ) : __( 'No', 'oli-cron-jobs' ),
+				),
 				'log_retention'    => array(
 					'label' => __( 'Log Retention (days)', 'oli-cron-jobs' ),
 					'value' => get_option( 'oli_cj_log_retention_days', 30 ),
@@ -316,7 +327,14 @@ class Oli_CJ_Site_Health {
 		if ( defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ) {
 			$issues[] = array(
 				'type'    => 'warning',
-				'message' => __( 'WP-Cron is disabled. Make sure you have a server cron job configured.', 'oli-cron-jobs' ),
+				'message' => __( 'WP-Cron is disabled via DISABLE_WP_CRON. Make sure you have a server cron job configured.', 'oli-cron-jobs' ),
+			);
+		}
+
+		if ( defined( 'ALTERNATE_WP_CRON' ) && ALTERNATE_WP_CRON ) {
+			$issues[] = array(
+				'type'    => 'warning',
+				'message' => __( 'ALTERNATE_WP_CRON is enabled. Cron spawning uses a visitor redirect and may be unreliable.', 'oli-cron-jobs' ),
 			);
 		}
 
@@ -336,5 +354,62 @@ class Oli_CJ_Site_Health {
 		}
 
 		return $issues;
+	}
+
+	/**
+	 * Request this site's wp-cron.php to test whether cron can spawn.
+	 *
+	 * @return array {
+	 *     @type bool   $success Whether the spawn request succeeded.
+	 *     @type string $message Result message.
+	 * }
+	 */
+	public static function run_spawn_test() {
+		$cron_url      = site_url( 'wp-cron.php' );
+		$doing_wp_cron = sprintf( '%.22F', microtime( true ) );
+
+		$cron_request = apply_filters(
+			'cron_request', // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core filter.
+			array(
+				'url'  => add_query_arg( 'doing_wp_cron', $doing_wp_cron, $cron_url ),
+				'key'  => $doing_wp_cron,
+				'args' => array(
+					'timeout'   => 5,
+					'blocking'  => true,
+					'sslverify' => apply_filters( 'https_local_ssl_verify', false ), // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core filter.
+				),
+			)
+		);
+
+		$cron_request['args']['blocking'] = true;
+		$response                         = wp_remote_post( $cron_request['url'], $cron_request['args'] );
+
+		if ( is_wp_error( $response ) ) {
+			return array(
+				'success' => false,
+				'message' => sprintf(
+					/* translators: %s: error message */
+					__( 'Cron spawn failed: %s', 'oli-cron-jobs' ),
+					$response->get_error_message()
+				),
+			);
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+		if ( $code >= 400 ) {
+			return array(
+				'success' => false,
+				'message' => sprintf(
+					/* translators: %d: HTTP status code */
+					__( 'Cron spawn returned HTTP status %d.', 'oli-cron-jobs' ),
+					$code
+				),
+			);
+		}
+
+		return array(
+			'success' => true,
+			'message' => __( 'Cron spawn succeeded. WordPress was able to request wp-cron.php on this site.', 'oli-cron-jobs' ),
+		);
 	}
 }

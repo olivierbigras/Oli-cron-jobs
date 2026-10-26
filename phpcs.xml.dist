@@ -14,14 +14,12 @@
 	<!-- Show progress and sniff codes in all reports -->
 	<arg value="ps"/>
 
-	<!-- Use WordPress coding standards -->
-	<rule ref="WordPress">
-		<!-- Allow short array syntax -->
+	<!-- WordPress-Extra plus documentation rules. -->
+	<rule ref="WordPress-Extra">
 		<exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
-		
-		<!-- Allow multiple PHP statements on same line for short checks -->
 		<exclude name="Squiz.PHP.DisallowMultipleAssignments"/>
 	</rule>
+	<rule ref="WordPress-Docs"/>
 
 	<!-- Enforce WordPress naming conventions -->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">

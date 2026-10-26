@@ -12,11 +12,18 @@
 	 */
 	function oliCjToggleEventTypeFields() {
 		var type = $('#event_type').val();
+		var $hook = $('#hook');
 
-		$('#url_field').addClass('oli-cj-hidden');
+		$('#url_field, #php_field').addClass('oli-cj-hidden');
 
 		if ('url' === type) {
 			$('#url_field').removeClass('oli-cj-hidden');
+			$hook.prop('required', true);
+		} else if ('php' === type) {
+			$('#php_field').removeClass('oli-cj-hidden');
+			$hook.prop('required', false);
+		} else {
+			$hook.prop('required', true);
 		}
 	}
 

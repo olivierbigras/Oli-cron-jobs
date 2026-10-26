@@ -44,41 +44,11 @@ class Oli_CJ_Logger {
 	 * Initialize hooks
 	 */
 	private function init_hooks() {
-		add_action( 'all', array( $this, 'maybe_log_cron_event' ), 10, 3 );
 		add_action( 'oli_cj_cleanup_logs', array( $this, 'cleanup_old_logs' ) );
 
 		if ( ! wp_next_scheduled( 'oli_cj_cleanup_logs' ) ) {
 			wp_schedule_event( time(), 'daily', 'oli_cj_cleanup_logs' );
 		}
-	}
-
-	/**
-	 * Maybe log a cron event
-	 *
-	 * @param string $hook Hook name.
-	 */
-	public function maybe_log_cron_event( $hook ) {
-		static $handling = false;
-
-		if ( $handling ) {
-			return;
-		}
-
-		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {
-			return;
-		}
-
-		if ( 'oli_cj_cleanup_logs' === $hook ) {
-			return;
-		}
-
-		$handling   = true;
-		$args       = func_num_args() > 1 ? array_slice( func_get_args(), 1 ) : array();
-		$start_time = microtime( true );
-
-		$GLOBALS['oli_cj_event_start'][ $hook ] = $start_time;
-		unset( $args );
-		$handling = false;
 	}
 
 	/**

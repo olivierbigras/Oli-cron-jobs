@@ -17,6 +17,20 @@ tr.oli-cj-event-overdue {
 	background-color: #fcf0f1;
 }
 
+.oli-cj-event-late,
+tr.oli-cj-event-late {
+	background-color: #fff4e5;
+}
+
+.oli-cj-status-panel {
+	margin: 16px 0 24px;
+	max-width: 960px;
+}
+
+.oli-cj-status-panel table th {
+	width: 200px;
+}
+
 .oli-cj-event-paused,
 tr.oli-cj-event-paused,
 .oli-cj-event-unsupported,

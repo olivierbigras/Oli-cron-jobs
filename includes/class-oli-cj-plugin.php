@@ -47,6 +47,7 @@ class Oli_CJ_Plugin {
 	 */
 	private function load_dependencies() {
 		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-cron-manager.php';
+		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-php-events.php';
 		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-schedule-manager.php';
 		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-logger.php';
 		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-site-health.php';
@@ -66,18 +67,10 @@ class Oli_CJ_Plugin {
 	 * Initialize hooks
 	 */
 	private function init_hooks() {
-		add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
 		add_action( 'init', array( $this, 'init' ) );
 
 		// Register URL handlers and pause guards now, not on a later init callback.
 		Oli_CJ_Cron_Manager::init();
-	}
-
-	/**
-	 * Load text domain for translations
-	 */
-	public function load_textdomain() {
-		load_plugin_textdomain( 'oli-cron-jobs', false, dirname( plugin_basename( OLI_CJ_PLUGIN_FILE ) ) . '/languages' );
 	}
 
 	/**
@@ -128,9 +121,6 @@ class Oli_CJ_Plugin {
 		Oli_CJ_Logger::create_table();
 
 		self::migrate_legacy_options();
-
-		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-cron-manager.php';
-		Oli_CJ_Cron_Manager::disable_legacy_php_events();
 
 		update_option( 'oli_cj_version', OLI_CJ_VERSION );
 	}

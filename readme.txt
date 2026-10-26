@@ -1,114 +1,100 @@
 === Oli Cron Jobs ===
 Contributors: bigrat95
 Donate link: https://olivierbigras.com/
-Tags: cron, wp-cron, scheduled tasks, cron manager, debugging
+Tags: cron, scheduled-tasks, cron-manager, debugging, tasks
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.1.4
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-A comprehensive WP-Cron management plugin with advanced features for viewing, managing, and monitoring scheduled tasks.
+View, add, edit, run, pause, and export WordPress cron events, including URL events and capability-gated PHP events.
 
 == Description ==
 
-Oli Cron Jobs is a powerful and user-friendly plugin for managing WordPress cron events. It provides complete control over scheduled tasks with an intuitive interface and advanced features.
+Oli Cron Jobs is a cron event manager for WordPress. It lists every scheduled event and lets administrators add, edit, delete, pause, resume, or run events immediately.
+
+Author: Olivier Bigras
+Author URI: https://github.com/olivierbigras
+Email: oli@olivierbigras.com
 
 = Key Features =
 
-* **View All Cron Events** - See all scheduled events with detailed information including hook names, arguments, next run time, recurrence, and attached callbacks
-* **Manage Events** - Add, edit, delete, or run cron events immediately
-* **Bulk Operations** - Delete multiple events at once
-* **Pause/Resume Hooks** - Temporarily disable specific hooks without deleting them
-* **Custom Schedules** - Create and manage custom cron intervals
-* **URL Cron Events** - Schedule HTTP requests to external URLs
-* **Comprehensive Logging** - Track event executions with duration and error logging
-* **Site Health Integration** - Automatic checks for WP-Cron issues including disabled cron, spawn failures, and missed events
-* **Admin Bar Notices** - Quick access to cron management with issue notifications
-* **WP-CLI Support** - Manage cron events from the command line
-* **Search and Filter** - Easily find specific events with search and filter options
-* **Timezone Support** - All times displayed in your site's configured timezone
+* **Event list** - Hook, arguments, next run in the site timezone and in UTC, recurrence, action callbacks, and late or missed status
+* **Search, filters, and pagination** - Filter by all events, events with no action, core, custom, or PHP events
+* **Event management** - Add, edit, delete, run now, and bulk delete
+* **Pause and resume** - Temporarily stop a hook from running without deleting it
+* **Custom schedules** - Add and delete custom intervals
+* **URL cron events** - Schedule an HTTP request to a URL you choose
+* **PHP cron events** - Run PHP when an event fires. Requires the `edit_files` capability and is blocked when `DISALLOW_FILE_EDIT` or `DISALLOW_FILE_MODS` is set
+* **WP-Cron status** - See whether built-in cron is disabled, whether alternate cron is on, and run a spawn test
+* **CSV export** - Download the event list as a spreadsheet
+* **Site Health** - Checks for disabled cron, spawn failures, and missed events
 
-= Site Health Checks =
+= PHP cron events =
 
-The plugin integrates with WordPress Site Health to monitor:
+PHP events require the same access as the plugin and theme editors (`edit_files`). They cannot be added, edited, deleted, or run manually when file editing is disabled.
 
-* WP-Cron enabled/disabled status
-* Cron spawn functionality
-* Missed or overdue events
-* Overall cron system health
+A warning is shown on the add and edit screens. Stored PHP is protected with an integrity hash so tampered code will not run until the event is re-saved.
 
-= WP-CLI Commands =
+To disable PHP events completely, add this to `wp-config.php`:
 
-Manage cron events from the command line:
-
-* `wp oli-cron list` - List all cron events
-* `wp oli-cron run <hook>` - Run a specific cron event
-* `wp oli-cron delete <hook> --all` - Delete all instances of a hook
-* `wp oli-cron pause <hook>` - Pause a cron hook
-* `wp oli-cron resume <hook>` - Resume a paused hook
+`define( 'OLI_CJ_DISALLOW_PHP_EVENTS', true );`
 
 = Security =
 
-Security is a top priority:
-
-* All operations require `manage_options` capability
-* The plugin does not execute arbitrary PHP. There is no `eval()` and no `create_function()`
-* Only standard hook events and opt-in URL events can be created
-* Existing PHP events from earlier versions stay stored and listed, but they are disabled and never executed
-* Proper nonce verification on all actions
-* All input sanitized and output escaped
+* Cron management requires the `manage_options` capability
+* PHP events also require `edit_files` and respect `DISALLOW_FILE_EDIT`
+* Every action uses a nonce
+* Input is sanitized and output is escaped
+* The plugin does not phone home and does not track users
 
 = Compatibility =
 
-* Works with DISABLE_WP_CRON enabled (server cron)
-* Compatible with multisite installations
-* Integrates seamlessly with WordPress core
+* Works when `DISABLE_WP_CRON` is enabled (use a server cron job)
+* Warns when `ALTERNATE_WP_CRON` is enabled
+* Compatible with multisite
 
 == Installation ==
 
-1. Upload the plugin files to the `/wp-content/plugins/oli-cron-jobs` directory, or install the plugin through the WordPress plugins screen directly.
-2. Activate the plugin through the 'Plugins' screen in WordPress.
-3. Navigate to Tools → Cron Jobs to start managing your cron events.
+1. Upload the plugin files to the `/wp-content/plugins/oli-cron-jobs` directory, or install the plugin through the WordPress plugins screen.
+2. Activate the plugin through the Plugins screen in WordPress.
+3. Go to Tools → Cron Jobs to manage events.
 
 == Frequently Asked Questions ==
 
 = What is WP-Cron? =
 
-WP-Cron is WordPress's built-in task scheduler that allows plugins to schedule tasks to run at specific times or intervals.
+WP-Cron is WordPress's built-in task scheduler. Plugins and core use it to run work at a later time or on an interval.
 
-= Can I delete WordPress core cron events? =
+= Can I delete core cron events? =
 
-Yes, but be careful! Deleting core WordPress events may affect functionality like scheduled posts, update checks, and backups.
+Yes, but deleting core events can affect scheduled posts, update checks, and similar features. Prefer pausing a hook if you only need to stop it temporarily.
 
 = What happens if I pause a hook? =
 
-When a hook is paused, it will not execute even if the scheduled time arrives. The event remains in the schedule but is blocked from running.
+The event stays scheduled, but its callbacks do not run until you resume the hook.
 
-= What happened to PHP cron events? =
+= Who can manage PHP cron events? =
 
-PHP cron events were removed in version 0.1.3. The plugin no longer executes stored PHP and no longer offers a PHP event type when you add or edit an event. Existing PHP events stay listed and their stored data is kept, but they are disabled, never executed, and their code cannot be edited. Use a standard hook or a URL event instead.
+Users who can manage options and edit files. If `DISALLOW_FILE_EDIT` or `DISALLOW_FILE_MODS` is set, PHP events cannot be created or changed.
 
 = Does this work with DISABLE_WP_CRON? =
 
-Yes! The plugin works whether WP-Cron is enabled or disabled. It will display a notice if WP-Cron is disabled to remind you to set up server cron.
+Yes. The plugin still lists and manages events. A notice reminds you to trigger `wp-cron.php` from the server.
 
-= How long are logs kept? =
+= How do I export events? =
 
-By default, logs are kept for 30 days. You can configure this in the settings page under Tools → Cron Settings.
+Use Export CSV on the Cron Events screen. Custom events and schedules can also be exported as JSON from Cron Settings.
 
 == External services ==
 
 This plugin does not phone home and does not load third-party fonts, maps, or analytics.
 
-= Site Health cron spawn check =
+= Site Health and spawn test =
 
-When a site administrator opens WordPress Site Health, the plugin may send an HTTP POST request to this site's own `wp-cron.php` URL to verify that WP-Cron can spawn. The request stays on the same site. It does not send personal data to a third party.
-
-This check runs only for administrators viewing Site Health.
-
-WordPress privacy policy: https://wordpress.org/about/privacy/
+When an administrator opens Site Health, or clicks Run spawn test on the plugin screen, the plugin may send an HTTP POST request to this site's own `wp-cron.php` URL. The request stays on the same site. It does not send personal data to a third party.
 
 = URL cron events (opt-in) =
 
@@ -116,19 +102,24 @@ If an administrator creates a URL event, the plugin sends an HTTP GET request to
 
 This feature is unused until a URL event is created.
 
-Terms and privacy depend on the destination the administrator configures. Review that service's terms and privacy policy before saving a URL event.
-
-The plugin does not call olivierbigras.com, paypal.com, Google APIs, Cloudflare Turnstile, Carto, Leaflet, Google Sheets, or Google Fonts/Typekit from plugin code.
-
 == Screenshots ==
 
-1. Cron Events list showing all scheduled tasks
-2. Custom schedules management
+1. Cron Events list with next run times, callbacks, and status
+2. Custom schedules
 3. Cron execution logs
 4. Site Health integration
-5. Admin bar quick access
+5. WP-Cron status and spawn test
 
 == Changelog ==
+
+= 0.2.0 =
+* Restored PHP cron events with `edit_files` checks, DISALLOW_FILE_EDIT support, integrity hashes, and a clear warning
+* Show next run in the site timezone and in UTC
+* Added All / no action / core / custom / PHP filters, plus late and missed status
+* Added a WP-Cron status panel, spawn test, ALTERNATE_WP_CRON warning, and CSV export
+* Admin notices now appear only on this plugin's screens
+* Removed load_plugin_textdomain()
+* Added PHPUnit tests for event CRUD and run-now
 
 = 0.1.4 =
 * Fixed an infinite recursion on the `all` hook that returned HTTP 500 on every wp-admin screen
@@ -136,62 +127,27 @@ The plugin does not call olivierbigras.com, paypal.com, Google APIs, Cloudflare 
 * URL cron events now register their handlers immediately so `wp cron event run` actually requests the URL and writes a log row
 
 = 0.1.3 =
-* Removed PHP event creation and execution. The plugin no longer uses eval() or create_function()
-* Existing PHP events stay listed and stored, but they are disabled, never executed, and not editable
-* Added an admin notice explaining that PHP events are no longer supported
-* Creation UI now offers only standard hook events and URL events
-* Import skips PHP events so they cannot be recreated
+* Temporarily removed PHP event creation and execution
+* Existing PHP events stayed listed and stored
 
 = 0.1.2 =
-* Moved the add/edit event-type toggle scripts into the enqueued admin.js file
-* Replaced remaining inline onclick handlers and color styles with classes and CSS
+* Moved add/edit event-type toggle scripts into the enqueued admin.js file
 * Documented Site Health and URL-event HTTP requests under External services
-* Added a versioned upgrade routine and uninstall cleanup
-* Hardened JSON import sanitization
 
 = 0.1.1 =
-* Added: Edit event UI with support for all event types
-* Added: Export/Import functionality for events and schedules (JSON format)
-* Added: Advanced filtering by status, schedule, and hook type (core, plugin, custom, URL, PHP)
-* Added: Plugin/theme source detection for callbacks using reflection
-* Enhanced: Callbacks column now shows which plugin/theme registered each callback
-* Improved: Code quality with PHPCS WordPress Coding Standards compliance
-* Fixed: Inline comment formatting and code alignment
-* Fixed: Input sanitization and validation improvements
+* Added edit event UI, export/import, advanced filtering, and callback source detection
 
 = 0.1.0 =
 * Initial release
-* View all WP-Cron events with detailed information
-* Add, edit, delete, and run cron events
-* Bulk delete operations
-* Pause/resume individual hooks
-* Custom cron schedule management
-* URL cron events
-* PHP cron events with proper security restrictions
-* Comprehensive event logging with retention settings
-* Site Health integration
-* Admin bar and dashboard notices
-* WP-CLI command support
-* Search and filter functionality
-* Full internationalization support
 
 == Upgrade Notice ==
 
-= 0.1.4 =
-Fixes the wp-admin HTTP 500 caused by paused-hook handling, and makes URL cron events run.
-
-= 0.1.3 =
-PHP events are no longer supported or executed. Existing PHP events stay listed and stored, but they are disabled. Use a hook or URL event instead.
-
-= 0.1.2 =
-WordPress.org readiness: no inline scripts or styles, External services section, and lossless option upgrade.
-
-= 0.1.0 =
-Initial release of Oli Cron Jobs.
+= 0.2.0 =
+PHP cron events are available again for users who can edit files. Next run times now include UTC, and the events screen can export CSV and test cron spawn.
 
 == Privacy Policy ==
 
-Oli Cron Jobs does not collect, store, or transmit any personal data outside of your WordPress installation. All data is stored locally in your WordPress database.
+Oli Cron Jobs does not collect, store, or transmit personal data outside of your WordPress installation. All plugin data is stored locally in your WordPress database.
 
 == Support ==
 
