@@ -13,12 +13,18 @@
 }
 
 .oli-cj-event-overdue,
-tr.oli-cj-event-overdue {
+tr.oli-cj-event-overdue,
+.wp-list-table.striped > tbody > tr.oli-cj-event-overdue,
+.wp-list-table.striped > tbody > tr.oli-cj-event-overdue > th,
+.wp-list-table.striped > tbody > tr.oli-cj-event-overdue > td {
 	background-color: #fcf0f1;
 }
 
 .oli-cj-event-late,
-tr.oli-cj-event-late {
+tr.oli-cj-event-late,
+.wp-list-table.striped > tbody > tr.oli-cj-event-late,
+.wp-list-table.striped > tbody > tr.oli-cj-event-late > th,
+.wp-list-table.striped > tbody > tr.oli-cj-event-late > td {
 	background-color: #fff4e5;
 }
 
@@ -34,7 +40,13 @@ tr.oli-cj-event-late {
 .oli-cj-event-paused,
 tr.oli-cj-event-paused,
 .oli-cj-event-unsupported,
-tr.oli-cj-event-unsupported {
+tr.oli-cj-event-unsupported,
+.wp-list-table.striped > tbody > tr.oli-cj-event-paused,
+.wp-list-table.striped > tbody > tr.oli-cj-event-paused > th,
+.wp-list-table.striped > tbody > tr.oli-cj-event-paused > td,
+.wp-list-table.striped > tbody > tr.oli-cj-event-unsupported,
+.wp-list-table.striped > tbody > tr.oli-cj-event-unsupported > th,
+.wp-list-table.striped > tbody > tr.oli-cj-event-unsupported > td {
 	background-color: #fcf9e8;
 }
 

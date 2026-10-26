@@ -333,7 +333,7 @@ class Oli_CJ_Admin {
 	 * @param string $message Message slug.
 	 */
 	private function redirect_events( $message ) {
-		wp_safe_redirect( add_query_arg( 'message', $message, admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+		wp_safe_redirect( add_query_arg( 'oli_cj_message', $message, admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 		exit;
 	}
 
@@ -343,7 +343,7 @@ class Oli_CJ_Admin {
 	 * @param string $message Message slug.
 	 */
 	private function redirect_add( $message ) {
-		wp_safe_redirect( add_query_arg( 'message', $message, admin_url( 'tools.php?page=oli-cron-jobs-add' ) ) );
+		wp_safe_redirect( add_query_arg( 'oli_cj_message', $message, admin_url( 'tools.php?page=oli-cron-jobs-add' ) ) );
 		exit;
 	}
 
@@ -515,12 +515,12 @@ class Oli_CJ_Admin {
 		$sig       = $this->get_action_text( 'sig' );
 
 		if ( Oli_CJ_Cron_Manager::is_php_event( $hook ) && ! Oli_CJ_PHP_Events::can_manage() ) {
-			wp_safe_redirect( add_query_arg( 'message', 'php_event_forbidden', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'php_event_forbidden', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 			exit;
 		}
 
 		if ( Oli_CJ_Cron_Manager::delete_event( $hook, $timestamp, $sig ) ) {
-			wp_safe_redirect( add_query_arg( 'message', 'event_deleted', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'event_deleted', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 			exit;
 		}
 	}
@@ -535,7 +535,7 @@ class Oli_CJ_Admin {
 		$args      = is_array( $args ) ? $args : array();
 
 		if ( Oli_CJ_Cron_Manager::is_php_event( $hook ) && ! Oli_CJ_PHP_Events::can_manage() ) {
-			wp_safe_redirect( add_query_arg( 'message', 'php_event_forbidden', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'php_event_forbidden', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 			exit;
 		}
 
@@ -543,7 +543,7 @@ class Oli_CJ_Admin {
 
 		wp_safe_redirect(
 			add_query_arg(
-				'message',
+				'oli_cj_message',
 				$result ? 'event_ran' : 'event_failed',
 				admin_url( 'tools.php?page=oli-cron-jobs' )
 			)
@@ -558,7 +558,7 @@ class Oli_CJ_Admin {
 		$hook = $this->get_action_text( 'hook' );
 
 		if ( Oli_CJ_Cron_Manager::pause_hook( $hook ) ) {
-			wp_safe_redirect( add_query_arg( 'message', 'hook_paused', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'hook_paused', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 			exit;
 		}
 	}
@@ -570,7 +570,7 @@ class Oli_CJ_Admin {
 		$hook = $this->get_action_text( 'hook' );
 
 		if ( Oli_CJ_Cron_Manager::resume_hook( $hook ) ) {
-			wp_safe_redirect( add_query_arg( 'message', 'hook_resumed', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'hook_resumed', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 			exit;
 		}
 	}
@@ -582,7 +582,7 @@ class Oli_CJ_Admin {
 		$schedule = $this->get_action_text( 'schedule' );
 
 		if ( Oli_CJ_Schedule_Manager::delete_schedule( $schedule ) ) {
-			wp_safe_redirect( add_query_arg( 'message', 'schedule_deleted', admin_url( 'tools.php?page=oli-cron-jobs-schedules' ) ) );
+			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'schedule_deleted', admin_url( 'tools.php?page=oli-cron-jobs-schedules' ) ) );
 			exit;
 		}
 	}
@@ -592,7 +592,7 @@ class Oli_CJ_Admin {
 	 */
 	private function handle_clear_logs() {
 		if ( Oli_CJ_Logger::clear_all_logs() ) {
-			wp_safe_redirect( add_query_arg( 'message', 'logs_cleared', admin_url( 'tools.php?page=oli-cron-jobs-logs' ) ) );
+			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'logs_cleared', admin_url( 'tools.php?page=oli-cron-jobs-logs' ) ) );
 			exit;
 		}
 	}
@@ -707,7 +707,7 @@ class Oli_CJ_Admin {
 	 */
 	private function handle_test_spawn() {
 		set_transient( 'oli_cj_spawn_test', Oli_CJ_Site_Health::run_spawn_test(), 10 * MINUTE_IN_SECONDS );
-		wp_safe_redirect( add_query_arg( 'message', 'spawn_tested', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+		wp_safe_redirect( add_query_arg( 'oli_cj_message', 'spawn_tested', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 		exit;
 	}
 
@@ -724,13 +724,13 @@ class Oli_CJ_Admin {
 		}
 
 		if ( ! isset( $_FILES['import_file'] ) || ! isset( $_FILES['import_file']['error'] ) || UPLOAD_ERR_OK !== (int) $_FILES['import_file']['error'] ) {
-			wp_safe_redirect( add_query_arg( 'message', 'import_error', admin_url( 'tools.php?page=oli-cron-jobs-settings' ) ) );
+			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'import_error', admin_url( 'tools.php?page=oli-cron-jobs-settings' ) ) );
 			exit;
 		}
 
 		$tmp_name = isset( $_FILES['import_file']['tmp_name'] ) ? sanitize_text_field( wp_unslash( $_FILES['import_file']['tmp_name'] ) ) : '';
 		if ( '' === $tmp_name || ! is_uploaded_file( $tmp_name ) ) {
-			wp_safe_redirect( add_query_arg( 'message', 'import_error', admin_url( 'tools.php?page=oli-cron-jobs-settings' ) ) );
+			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'import_error', admin_url( 'tools.php?page=oli-cron-jobs-settings' ) ) );
 			exit;
 		}
 
@@ -739,7 +739,7 @@ class Oli_CJ_Admin {
 		$import_data   = json_decode( $file_contents, true );
 
 		if ( json_last_error() !== JSON_ERROR_NONE || ! is_array( $import_data ) ) {
-			wp_safe_redirect( add_query_arg( 'message', 'import_error', admin_url( 'tools.php?page=oli-cron-jobs-settings' ) ) );
+			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'import_error', admin_url( 'tools.php?page=oli-cron-jobs-settings' ) ) );
 			exit;
 		}
 
@@ -813,8 +813,8 @@ class Oli_CJ_Admin {
 		wp_safe_redirect(
 			add_query_arg(
 				array(
-					'message' => 'imported',
-					'count'   => $imported_count,
+					'oli_cj_message' => 'imported',
+					'oli_cj_count'   => $imported_count,
 				),
 				admin_url( 'tools.php?page=oli-cron-jobs-settings' )
 			)
@@ -1394,7 +1394,7 @@ class Oli_CJ_Admin {
 					<?php else : ?>
 						<?php foreach ( $logs as $log ) : ?>
 							<tr>
-								<td><?php echo esc_html( $log->created_at ); ?></td>
+								<td><?php echo esc_html( $this->format_log_datetime( $log->created_at ) ); ?></td>
 								<td><code><?php echo esc_html( $log->hook ); ?></code></td>
 								<td><?php echo esc_html( ucfirst( $log->event_type ) ); ?></td>
 								<td><?php echo esc_html( number_format( $log->duration, 4 ) ); ?>s</td>
@@ -1524,16 +1524,34 @@ class Oli_CJ_Admin {
 	}
 
 	/**
+	 * Format a stored MySQL datetime with the site date and time formats.
+	 *
+	 * @param string $mysql_datetime Datetime from current_time( 'mysql' ).
+	 * @return string
+	 */
+	private function format_log_datetime( $mysql_datetime ) {
+		$timestamp = mysql2date( 'U', (string) $mysql_datetime, false );
+		if ( ! $timestamp ) {
+			return (string) $mysql_datetime;
+		}
+
+		$format    = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+		$formatted = wp_date( $format, (int) $timestamp );
+
+		return is_string( $formatted ) ? $formatted : (string) $mysql_datetime;
+	}
+
+	/**
 	 * Render admin messages
 	 */
 	private function render_messages() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only redirect message.
-		if ( ! isset( $_GET['message'] ) ) {
+		if ( ! isset( $_GET['oli_cj_message'] ) ) {
 			return;
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only redirect message.
-		$message  = sanitize_text_field( wp_unslash( $_GET['message'] ) );
+		$message  = sanitize_text_field( wp_unslash( $_GET['oli_cj_message'] ) );
 		$messages = array(
 			'event_added'         => __( 'Cron event added successfully.', 'oli-cron-jobs' ),
 			'event_deleted'       => __( 'Event deleted successfully.', 'oli-cron-jobs' ),
@@ -1553,8 +1571,21 @@ class Oli_CJ_Admin {
 			'logs_cleared'        => __( 'Logs cleared successfully.', 'oli-cron-jobs' ),
 			'exported'            => __( 'Data exported successfully.', 'oli-cron-jobs' ),
 			'imported'            => __( 'Data imported successfully.', 'oli-cron-jobs' ),
+			'import_error'        => __( 'The import file could not be read.', 'oli-cron-jobs' ),
 			'spawn_tested'        => __( 'Cron spawn test finished. See the WP-Cron status panel for the result.', 'oli-cron-jobs' ),
 		);
+
+		if ( 'imported' === $message ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only redirect count.
+			$imported_count = isset( $_GET['oli_cj_count'] ) ? absint( wp_unslash( $_GET['oli_cj_count'] ) ) : 0;
+			if ( $imported_count > 0 ) {
+				$messages['imported'] = sprintf(
+					/* translators: %d: number of imported items */
+					_n( '%d item imported successfully.', '%d items imported successfully.', $imported_count, 'oli-cron-jobs' ),
+					$imported_count
+				);
+			}
+		}
 
 		if ( isset( $messages[ $message ] ) ) {
 			$warning_messages = array(
@@ -1566,6 +1597,7 @@ class Oli_CJ_Admin {
 				'url_hook_required',
 				'url_required',
 				'hook_required',
+				'import_error',
 			);
 			$notice_class     = in_array( $message, $warning_messages, true ) ? 'notice-warning' : 'notice-success';
 			echo '<div class="notice ' . esc_attr( $notice_class ) . ' is-dismissible"><p>' . esc_html( $messages[ $message ] ) . '</p></div>';
