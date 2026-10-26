@@ -37,6 +37,7 @@ class Oli_CJ_PHP_Events_Test extends PHPUnit\Framework\TestCase {
 			return;
 		}
 
+		remove_filter( 'oli_cj_is_file_editing_disallowed', '__return_true' );
 		Oli_CJ_Cron_Manager::delete_all_hook_events( $this->hook );
 		Oli_CJ_PHP_Events::delete_code( $this->hook );
 		delete_option( 'oli_cj_test_php_ran' );
@@ -105,5 +106,76 @@ class Oli_CJ_PHP_Events_Test extends PHPUnit\Framework\TestCase {
 	public function test_file_editing_disallow_blocks_management() {
 		$this->assertTrue( is_bool( Oli_CJ_PHP_Events::is_file_editing_disallowed() ) );
 		$this->assertTrue( is_string( Oli_CJ_PHP_Events::management_block_reason() ) );
+	}
+
+	/**
+	 * DISALLOW_FILE_EDIT / DISALLOW_FILE_MODS refuse execution even from cron.
+	 *
+	 * Constants cannot be defined for one test only, so the dedicated filter
+	 * simulates them. execute() also rechecks the constants independently of
+	 * can_execute().
+	 */
+	public function test_execute_refused_when_file_edit_disallowed() {
+		Oli_CJ_PHP_Events::save_code( $this->hook, 'update_option( "oli_cj_test_php_ran", 1 );' );
+		Oli_CJ_PHP_Events::register_handler( $this->hook );
+
+		$source = file_get_contents( OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-php-events.php' );
+		$this->assertNotFalse( $source );
+		$this->assertStringContainsString( 'constants_block_execution', $source );
+		$this->assertStringContainsString( 'DISALLOW_FILE_EDIT', $source );
+		$this->assertStringContainsString( 'DISALLOW_FILE_MODS', $source );
+		$this->assertMatchesRegularExpression( '/function execute\b[\s\S]*constants_block_execution[\s\S]*can_execute/', $source );
+
+		add_filter( 'oli_cj_is_file_editing_disallowed', '__return_true' );
+
+		$this->assertFalse( Oli_CJ_PHP_Events::can_execute() );
+		$this->assertFalse( Oli_CJ_PHP_Events::execute( $this->hook ) );
+		$this->assertFalse( Oli_CJ_PHP_Events::last_execute_succeeded() );
+		$this->assertFalse( get_option( 'oli_cj_test_php_ran' ) );
+
+		do_action( $this->hook );
+		$this->assertFalse( get_option( 'oli_cj_test_php_ran' ), 'Cron/do_action must not run PHP when file editing is disallowed.' );
+
+		$this->assertFalse( Oli_CJ_Cron_Manager::run_event_now( $this->hook, array() ) );
+		$this->assertFalse( get_option( 'oli_cj_test_php_ran' ) );
+
+		remove_filter( 'oli_cj_is_file_editing_disallowed', '__return_true' );
+	}
+
+	/**
+	 * PHP events execute via eval() after HMAC, and require edit_files to manage.
+	 */
+	public function test_php_event_executes_via_eval_with_hmac() {
+		$source = file_get_contents( OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-php-events.php' );
+		$this->assertNotFalse( $source );
+		$this->assertStringContainsString( 'eval(', $source );
+		$this->assertStringContainsString( 'hash_hmac', $source );
+		$this->assertStringContainsString( 'edit_files', $source );
+		$this->assertStringNotContainsString( 'tempnam', $source );
+		$this->assertDoesNotMatchRegularExpression( '/include\s*\(\s*\$/', $source );
+
+		$code = 'update_option( "oli_cj_test_php_ran", "eval-ok" );';
+		Oli_CJ_PHP_Events::save_code( $this->hook, $code );
+
+		$entry = Oli_CJ_PHP_Events::get_entry( $this->hook );
+		$this->assertIsArray( $entry );
+		$this->assertSame( Oli_CJ_PHP_Events::hash_code( $code ), $entry['hash'] );
+		$this->assertTrue( Oli_CJ_PHP_Events::is_entry_valid( $entry ) );
+
+		Oli_CJ_PHP_Events::register_handler( $this->hook );
+		do_action( $this->hook );
+
+		$this->assertSame( 'eval-ok', get_option( 'oli_cj_test_php_ran' ) );
+		$this->assertTrue( Oli_CJ_PHP_Events::last_execute_succeeded() );
+	}
+
+	/**
+	 * A PHP event that throws must report failure, not success.
+	 */
+	public function test_php_event_error_reports_failure() {
+		Oli_CJ_PHP_Events::save_code( $this->hook, 'throw new RuntimeException( "oli-cj-test-boom" );' );
+
+		$this->assertFalse( Oli_CJ_PHP_Events::execute( $this->hook ) );
+		$this->assertFalse( Oli_CJ_PHP_Events::last_execute_succeeded() );
 	}
 }

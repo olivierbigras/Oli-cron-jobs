@@ -31,11 +31,62 @@ class Oli_CJ_PHP_Events {
 	}
 
 	/**
+	 * Last execute() result for the current request.
+	 *
+	 * @var bool
+	 */
+	private static $last_execute_ok = false;
+
+	/**
 	 * Whether WordPress file editing is disabled.
 	 *
 	 * @return bool
 	 */
 	public static function is_file_editing_disallowed() {
+		$disallowed = false;
+
+		if ( defined( 'DISALLOW_FILE_EDIT' ) && DISALLOW_FILE_EDIT ) {
+			$disallowed = true;
+		}
+
+		if ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS ) {
+			$disallowed = true;
+		}
+
+		/**
+		 * Filter whether file editing (and therefore PHP event execution) is disallowed.
+		 *
+		 * @param bool $disallowed Whether file editing is disallowed.
+		 */
+		return (bool) apply_filters( 'oli_cj_is_file_editing_disallowed', $disallowed );
+	}
+
+	/**
+	 * Whether the current user may add, edit, delete, or run PHP events.
+	 *
+	 * @return bool
+	 */
+	public static function can_manage() {
+		if ( self::constants_block_execution() || self::is_file_editing_disallowed() ) {
+			return false;
+		}
+
+		return current_user_can( 'manage_options' ) && current_user_can( 'edit_files' );
+	}
+
+	/**
+	 * Whether DISALLOW_* or the plugin constant forbids PHP execution.
+	 *
+	 * This reads the constants directly. It is the cron-safe gate and is
+	 * checked again inside execute() so can_execute() is never the only check.
+	 *
+	 * @return bool
+	 */
+	public static function constants_block_execution() {
+		if ( defined( 'OLI_CJ_DISALLOW_PHP_EVENTS' ) && OLI_CJ_DISALLOW_PHP_EVENTS ) {
+			return true;
+		}
+
 		if ( defined( 'DISALLOW_FILE_EDIT' ) && DISALLOW_FILE_EDIT ) {
 			return true;
 		}
@@ -48,28 +99,29 @@ class Oli_CJ_PHP_Events {
 	}
 
 	/**
-	 * Whether the current user may add, edit, delete, or run PHP events.
+	 * Whether stored PHP may be executed, including by WP-Cron.
 	 *
-	 * @return bool
-	 */
-	public static function can_manage() {
-		if ( self::are_disabled() || self::is_file_editing_disallowed() ) {
-			return false;
-		}
-
-		return current_user_can( 'manage_options' ) && current_user_can( 'edit_files' );
-	}
-
-	/**
-	 * Whether stored PHP may be executed by cron.
-	 *
-	 * Scheduled execution is not tied to the current user. Integrity and the
-	 * OLI_CJ_DISALLOW_PHP_EVENTS constant still apply.
+	 * Execution is refused when file editing is disabled, when the dedicated
+	 * constant is set, or when the integrity hash is missing. Cron has no
+	 * current user, so capability checks happen at save time only.
 	 *
 	 * @return bool
 	 */
 	public static function can_execute() {
-		return ! self::are_disabled();
+		if ( self::constants_block_execution() || self::is_file_editing_disallowed() ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Whether the last execute() call succeeded.
+	 *
+	 * @return bool
+	 */
+	public static function last_execute_succeeded() {
+		return self::$last_execute_ok;
 	}
 
 	/**
@@ -288,7 +340,21 @@ class Oli_CJ_PHP_Events {
 	 * @return bool
 	 */
 	public static function execute( $hook ) {
+		self::$last_execute_ok = false;
+
 		if ( Oli_CJ_Cron_Manager::is_hook_paused( $hook ) ) {
+			Oli_CJ_Logger::log_event( $hook, array(), 'blocked', 0, 'Hook is paused' );
+			return false;
+		}
+
+		// Recheck constants here. can_execute() alone is not the execution gate.
+		if ( self::constants_block_execution() ) {
+			Oli_CJ_Logger::log_event( $hook, array(), 'blocked', 0, 'PHP events are disabled' );
+			return false;
+		}
+
+		if ( self::is_file_editing_disallowed() ) {
+			Oli_CJ_Logger::log_event( $hook, array(), 'blocked', 0, 'PHP events are disabled' );
 			return false;
 		}
 
@@ -316,10 +382,11 @@ class Oli_CJ_PHP_Events {
 			$error = $throwable->getMessage();
 		}
 
-		$duration = microtime( true ) - $start_time;
+		$duration              = microtime( true ) - $start_time;
+		self::$last_execute_ok = ( '' === $error );
 		Oli_CJ_Logger::log_event( $hook, array(), 'php', $duration, $error );
 
-		return '' === $error;
+		return self::$last_execute_ok;
 	}
 
 	/**
@@ -344,46 +411,20 @@ class Oli_CJ_PHP_Events {
 	}
 
 	/**
-	 * Run stored PHP by including a short-lived file. Does not use eval().
+	 * Run stored PHP with eval() after HMAC and file-edit gates.
 	 *
 	 * @param string $code PHP code without an opening tag.
 	 * @return void
-	 * @throws RuntimeException If the temporary file cannot be created or written.
+	 * @throws RuntimeException If execution is not permitted.
 	 */
 	private static function run_code( $code ) {
-		$dir = get_temp_dir();
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- Temporary runtime file, not a theme/plugin edit.
-		if ( ! is_dir( $dir ) || ! is_writable( $dir ) ) {
-			throw new RuntimeException( 'The temporary directory is not writable.' );
+		if ( self::constants_block_execution() || self::is_file_editing_disallowed() ) {
+			throw new RuntimeException( 'PHP events cannot be executed while file editing is disabled.' );
 		}
 
-		$base = tempnam( $dir, 'oli_cj_' );
-		if ( ! $base ) {
-			throw new RuntimeException( 'Unable to create a temporary PHP event file.' );
-		}
+		$code = self::strip_opening_tag( $code );
 
-		$file = $base . '.php';
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- Temporary runtime file rename.
-		if ( ! rename( $base, $file ) ) {
-			wp_delete_file( $base );
-			throw new RuntimeException( 'Unable to prepare a temporary PHP event file.' );
-		}
-
-		$wrapped = "<?php\nif ( ! defined( 'ABSPATH' ) ) {\n\texit;\n}\n" . self::strip_opening_tag( $code );
-
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Short-lived runtime include, not a theme/plugin edit.
-		$written = file_put_contents( $file, $wrapped, LOCK_EX );
-		if ( false === $written ) {
-			wp_delete_file( $file );
-			throw new RuntimeException( 'Unable to write the temporary PHP event file.' );
-		}
-
-		try {
-			include $file; // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable -- Integrity-checked user PHP event.
-		} finally {
-			if ( file_exists( $file ) ) {
-				wp_delete_file( $file );
-			}
-		}
+		// phpcs:ignore Squiz.PHP.Eval.Discouraged, Generic.PHP.ForbiddenFunctions.Found, PluginCheck.CodeAnalysis.DiscouragedPHPFunctions.evalFound -- HMAC-checked PHP cron event; gated by edit_files and DISALLOW_FILE_EDIT / DISALLOW_FILE_MODS.
+		eval( $code );
 	}
 }

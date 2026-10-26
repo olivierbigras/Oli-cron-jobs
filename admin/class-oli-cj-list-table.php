@@ -71,7 +71,7 @@ class Oli_CJ_List_Table extends WP_List_Table {
 				<option value=""><?php echo esc_html__( 'All Types', 'oli-cron-jobs' ); ?></option>
 				<option value="noaction" <?php selected( $type_filter, 'noaction' ); ?>><?php echo esc_html__( 'Events with no action', 'oli-cron-jobs' ); ?></option>
 				<option value="core" <?php selected( $type_filter, 'core' ); ?>><?php echo esc_html__( 'WordPress Core', 'oli-cron-jobs' ); ?></option>
-				<option value="custom" <?php selected( $type_filter, 'custom' ); ?>><?php echo esc_html__( 'Custom', 'oli-cron-jobs' ); ?></option>
+				<option value="custom" <?php selected( $type_filter, 'custom' ); ?>><?php echo esc_html__( 'Custom events', 'oli-cron-jobs' ); ?></option>
 				<option value="php" <?php selected( $type_filter, 'php' ); ?>><?php echo esc_html__( 'PHP Events', 'oli-cron-jobs' ); ?></option>
 				<option value="url" <?php selected( $type_filter, 'url' ); ?>><?php echo esc_html__( 'URL Events', 'oli-cron-jobs' ); ?></option>
 				<option value="plugin" <?php selected( $type_filter, 'plugin' ); ?>><?php echo esc_html__( 'Plugin', 'oli-cron-jobs' ); ?></option>
@@ -289,7 +289,7 @@ class Oli_CJ_List_Table extends WP_List_Table {
 			'all'      => __( 'All', 'oli-cron-jobs' ),
 			'noaction' => __( 'Events with no action', 'oli-cron-jobs' ),
 			'core'     => __( 'WordPress core', 'oli-cron-jobs' ),
-			'custom'   => __( 'Custom', 'oli-cron-jobs' ),
+			'custom'   => __( 'Custom events', 'oli-cron-jobs' ),
 			'php'      => __( 'PHP', 'oli-cron-jobs' ),
 		);
 

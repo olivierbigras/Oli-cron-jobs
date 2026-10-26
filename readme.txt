@@ -5,7 +5,7 @@ Tags: cron, scheduled-tasks, cron-manager, debugging, tasks
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -27,16 +27,18 @@ Email: oli@olivierbigras.com
 * **Pause and resume** - Temporarily stop a hook from running without deleting it
 * **Custom schedules** - Add and delete custom intervals
 * **URL cron events** - Schedule an HTTP request to a URL you choose
-* **PHP cron events** - Run PHP when an event fires. Requires the `edit_files` capability and is blocked when `DISALLOW_FILE_EDIT` or `DISALLOW_FILE_MODS` is set
+* **PHP cron events** - Run stored PHP with `eval()` when an event fires. Requires the `edit_files` capability. Execution is refused, including from WP-Cron, when `DISALLOW_FILE_EDIT` or `DISALLOW_FILE_MODS` is set
 * **WP-Cron status** - See whether built-in cron is disabled, whether alternate cron is on, and run a spawn test
 * **CSV export** - Download the event list as a spreadsheet
 * **Site Health** - Checks for disabled cron, spawn failures, and missed events
 
 = PHP cron events =
 
-PHP events require the same access as the plugin and theme editors (`edit_files`). They cannot be added, edited, deleted, or run manually when file editing is disabled.
+PHP events execute stored code with PHP's `eval()` function after an HMAC-SHA256 integrity check. This is powerful and dangerous: the code runs with the same privileges as WordPress itself. Only trusted administrators who have the `edit_files` capability (the same permission as the plugin and theme editors) should create PHP events. A warning is shown on the add and edit screens.
 
-A warning is shown on the add and edit screens. Stored PHP is protected with an integrity hash so tampered code will not run until the event is re-saved.
+Stored PHP is hashed with `wp_salt( 'auth' )`. Tampered code will not run until the event is re-saved. The plugin does not write a temporary file and include it.
+
+Execution is refused even when WP-Cron fires the hook if `DISALLOW_FILE_EDIT` or `DISALLOW_FILE_MODS` is defined. PHP events cannot be added, edited, deleted, or run manually in those cases either.
 
 To disable PHP events completely, add this to `wp-config.php`:
 
@@ -78,7 +80,11 @@ The event stays scheduled, but its callbacks do not run until you resume the hoo
 
 = Who can manage PHP cron events? =
 
-Users who can manage options and edit files. If `DISALLOW_FILE_EDIT` or `DISALLOW_FILE_MODS` is set, PHP events cannot be created or changed.
+Users who can manage options and edit files. If `DISALLOW_FILE_EDIT` or `DISALLOW_FILE_MODS` is set, PHP events cannot be created, changed, or executed (including from WP-Cron).
+
+= Why does this plugin use eval()? =
+
+PHP cron events need to run administrator-authored code when the event fires. The plugin uses `eval()` only for that feature, after an HMAC integrity check, and only when file editing is allowed. The risk is the same as pasting that code into the plugin editor: a compromised administrator account, or tampered stored code that still has a valid hash, can run arbitrary PHP. Disable the feature with `OLI_CJ_DISALLOW_PHP_EVENTS` or by setting `DISALLOW_FILE_EDIT`.
 
 = Does this work with DISABLE_WP_CRON? =
 
@@ -112,6 +118,16 @@ This feature is unused until a URL event is created.
 
 == Changelog ==
 
+= 0.2.1 =
+* PHP events refuse to execute (including from cron) when DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS is set
+* PHP events now run through eval() after an HMAC integrity check; documented the risk
+* CSV export prefixes formula-like cells to prevent spreadsheet injection
+* Fixed PHP 8.4 deprecations in fputcsv() and add_submenu_page()
+* Edit-event saves redirect before output so the success notice can show
+* Invalid or missing nonces now return HTTP 403
+* Failed PHP events report failure; URL events require a hook name
+* Uninstall deletes the spawn-test transient and unschedules plugin events
+
 = 0.2.0 =
 * Restored PHP cron events with `edit_files` checks, DISALLOW_FILE_EDIT support, integrity hashes, and a clear warning
 * Show next run in the site timezone and in UTC
@@ -141,6 +157,9 @@ This feature is unused until a URL event is created.
 * Initial release
 
 == Upgrade Notice ==
+
+= 0.2.1 =
+PHP events now use eval() with HMAC checks and will not run when file editing is disabled. CSV export is hardened against formula injection.
 
 = 0.2.0 =
 PHP cron events are available again for users who can edit files. Next run times now include UTC, and the events screen can export CSV and test cron spawn.

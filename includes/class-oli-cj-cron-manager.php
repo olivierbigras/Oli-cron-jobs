@@ -461,9 +461,16 @@ class Oli_CJ_Cron_Manager {
 			return false;
 		}
 
-		if ( self::is_php_event( $hook ) && ! Oli_CJ_PHP_Events::can_execute() ) {
-			Oli_CJ_Logger::log_event( $hook, $args, 'blocked', 0, 'PHP events are disabled' );
-			return false;
+		if ( self::is_php_event( $hook ) ) {
+			if ( Oli_CJ_PHP_Events::constants_block_execution() || ! Oli_CJ_PHP_Events::can_execute() || Oli_CJ_PHP_Events::is_file_editing_disallowed() ) {
+				Oli_CJ_Logger::log_event( $hook, $args, 'blocked', 0, 'PHP events are disabled' );
+				return false;
+			}
+
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- Runs the selected cron hook.
+			do_action_ref_array( $hook, $args );
+
+			return Oli_CJ_PHP_Events::last_execute_succeeded();
 		}
 
 		$start_time = microtime( true );
@@ -474,7 +481,7 @@ class Oli_CJ_Cron_Manager {
 
 		$duration = microtime( true ) - $start_time;
 
-		if ( self::is_php_event( $hook ) || false !== self::get_url( $hook ) ) {
+		if ( false !== self::get_url( $hook ) ) {
 			return true;
 		}
 
@@ -1085,16 +1092,36 @@ class Oli_CJ_Cron_Manager {
 			}
 
 			$rows[] = array(
-				'hook'          => $event['hook'],
-				'args'          => wp_json_encode( $event['args'] ),
-				'next_run_site' => self::format_site_datetime( $event['timestamp'] ),
-				'next_run_utc'  => self::format_utc_datetime( $event['timestamp'] ),
-				'recurrence'    => $event['schedule'] ? Oli_CJ_Schedule_Manager::get_schedule_display( $event['schedule'] ) : __( 'Non-repeating', 'oli-cron-jobs' ),
-				'callbacks'     => implode( '; ', $callbacks ),
-				'status'        => self::get_event_status( $event ),
+				'hook'          => self::escape_csv_cell( $event['hook'] ),
+				'args'          => self::escape_csv_cell( wp_json_encode( $event['args'] ) ),
+				'next_run_site' => self::escape_csv_cell( self::format_site_datetime( $event['timestamp'] ) ),
+				'next_run_utc'  => self::escape_csv_cell( self::format_utc_datetime( $event['timestamp'] ) ),
+				'recurrence'    => self::escape_csv_cell( $event['schedule'] ? Oli_CJ_Schedule_Manager::get_schedule_display( $event['schedule'] ) : __( 'Non-repeating', 'oli-cron-jobs' ) ),
+				'callbacks'     => self::escape_csv_cell( implode( '; ', $callbacks ) ),
+				'status'        => self::escape_csv_cell( self::get_event_status( $event ) ),
 			);
 		}
 
 		return $rows;
+	}
+
+	/**
+	 * Prefix formula-like CSV values so spreadsheet apps do not execute them.
+	 *
+	 * @param mixed $value Cell value.
+	 * @return string
+	 */
+	public static function escape_csv_cell( $value ) {
+		$value = (string) $value;
+		if ( '' === $value ) {
+			return $value;
+		}
+
+		$first = substr( $value, 0, 1 );
+		if ( in_array( $first, array( '=', '+', '-', '@', "\t", "\r" ), true ) ) {
+			return "'" . $value;
+		}
+
+		return $value;
 	}
 }

@@ -25,16 +25,35 @@ function oli_cj_uninstall_site() {
 		'oli_cj_custom_schedules',
 	);
 
+	$managed    = get_option( 'oli_cj_managed_hooks', array() );
+	$url_events = get_option( 'oli_cj_url_events', array() );
+	$php_events = get_option( 'oli_cj_php_events', array() );
+
+	$hooks = array( 'oli_cj_cleanup_logs' );
+	if ( is_array( $managed ) ) {
+		$hooks = array_merge( $hooks, $managed );
+	}
+	if ( is_array( $url_events ) ) {
+		$hooks = array_merge( $hooks, array_keys( $url_events ) );
+	}
+	if ( is_array( $php_events ) ) {
+		$hooks = array_merge( $hooks, array_keys( $php_events ) );
+	}
+
+	foreach ( array_unique( array_filter( $hooks ) ) as $hook ) {
+		wp_clear_scheduled_hook( $hook );
+	}
+
 	foreach ( $options as $option ) {
 		delete_option( $option );
 	}
+
+	delete_transient( 'oli_cj_spawn_test' );
 
 	$table_name = $wpdb->prefix . 'oli_cj_logs';
 
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- Uninstall drops the custom logs table.
 	$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $table_name ) );
-
-	wp_clear_scheduled_hook( 'oli_cj_cleanup_logs' );
 }
 
 if ( is_multisite() ) {

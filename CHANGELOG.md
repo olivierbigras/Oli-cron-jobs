@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-10-26
+
+### Security
+- PHP events refuse to execute, including from WP-Cron, when `DISALLOW_FILE_EDIT` or `DISALLOW_FILE_MODS` is defined. The constants are checked independently of `can_execute()`
+- PHP events run through `eval()` after an HMAC-SHA256 integrity check and require `edit_files` to manage. Temporary-file includes were removed
+- CSV export prefixes cells that start with `=`, `+`, `-`, `@`, a tab, or a carriage return
+
+### Fixed
+- PHP 8.4: `fputcsv()` is called with delimiter, enclosure, and escape; the hidden edit screen no longer passes `null` to `add_submenu_page()`
+- Saving an edited event redirects on `admin_init` before output, so headers are not already sent and the success notice appears
+- A missing or invalid nonce returns HTTP 403 instead of 500
+- A PHP event that throws reports failure instead of success
+- A URL event without a hook name shows a validation message
+- The custom-event filter label is now "Custom events" instead of "Custom (0)"
+- Uninstall deletes the `oli_cj_spawn_test` transient and unschedules the plugin's own events
+
+### Added
+- PHPUnit coverage for file-edit execution blocks, CSV formula escaping, and eval/HMAC execution
+
 ## [0.2.0] - 2026-10-26
 
 ### Added
@@ -81,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release of Oli Cron Jobs
 
+[0.2.1]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.1
 [0.2.0]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.0
 [0.1.4]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.1.4
 [0.1.3]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.1.3

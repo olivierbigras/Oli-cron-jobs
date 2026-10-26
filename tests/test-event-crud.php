@@ -175,6 +175,34 @@ class Oli_CJ_Event_CRUD_Test extends PHPUnit\Framework\TestCase {
 	}
 
 	/**
+	 * CSV cells that look like spreadsheet formulas are prefixed with a quote.
+	 */
+	public function test_csv_escapes_formula_injection() {
+		$this->assertSame( "'=1+1", Oli_CJ_Cron_Manager::escape_csv_cell( '=1+1' ) );
+		$this->assertSame( "'+cmd", Oli_CJ_Cron_Manager::escape_csv_cell( '+cmd' ) );
+		$this->assertSame( "'-1+2", Oli_CJ_Cron_Manager::escape_csv_cell( '-1+2' ) );
+		$this->assertSame( "'@SUM(A1)", Oli_CJ_Cron_Manager::escape_csv_cell( '@SUM(A1)' ) );
+		$this->assertSame( "'\tTAB", Oli_CJ_Cron_Manager::escape_csv_cell( "\tTAB" ) );
+		$this->assertSame( "'\rCR", Oli_CJ_Cron_Manager::escape_csv_cell( "\rCR" ) );
+		$this->assertSame( 'safe-hook', Oli_CJ_Cron_Manager::escape_csv_cell( 'safe-hook' ) );
+		$this->assertSame( '', Oli_CJ_Cron_Manager::escape_csv_cell( '' ) );
+		$this->assertSame( "'=1+1", Oli_CJ_Cron_Manager::escape_csv_cell( "'=1+1" ) );
+
+		$events = array(
+			array(
+				'hook'      => '=HYPERLINK("http://evil.example")',
+				'args'      => array( '+payload' ),
+				'timestamp' => time(),
+				'schedule'  => false,
+			),
+		);
+
+		$rows = Oli_CJ_Cron_Manager::get_csv_rows( $events );
+		$this->assertNotEmpty( $rows );
+		$this->assertSame( "'=HYPERLINK(\"http://evil.example\")", $rows[0]['hook'] );
+	}
+
+	/**
 	 * Find the first scheduled event for a hook.
 	 *
 	 * @param string $hook Hook name.

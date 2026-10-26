@@ -19,7 +19,7 @@ Email: oli@olivierbigras.com
 - Pause and resume a hook
 - Add and delete custom schedules
 - URL cron events (HTTP GET to a URL you choose)
-- PHP cron events (`edit_files` plus `DISALLOW_FILE_EDIT` / `DISALLOW_FILE_MODS`)
+- PHP cron events via `eval()` after HMAC integrity checks (`edit_files` plus `DISALLOW_FILE_EDIT` / `DISALLOW_FILE_MODS`; execution is refused from cron when those constants are set)
 - WP-Cron status, spawn test, and warnings for `DISABLE_WP_CRON` / `ALTERNATE_WP_CRON`
 - CSV export of the event list
 
@@ -37,7 +37,7 @@ Email: oli@olivierbigras.com
 
 ## PHP cron events
 
-Managing PHP events requires `manage_options` and `edit_files`. File editing constants block add, edit, delete, and run-now. Stored PHP is hashed so tampered code will not run.
+Managing PHP events requires `manage_options` and `edit_files`. Stored code is executed with `eval()` after an HMAC integrity check. That is equivalent in risk to the plugin editor: only trusted administrators should create PHP events. File editing constants block add, edit, delete, run-now, and cron execution. Stored PHP is hashed so tampered code will not run.
 
 Disable the feature entirely with:
 

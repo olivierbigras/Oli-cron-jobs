@@ -63,15 +63,16 @@ class Oli_CJ_Admin {
 			array( $this, 'render_add_event_page' )
 		);
 
-		// Edit page (hidden from menu).
+		// Hidden Tools child. A string parent avoids PHP 8.4 strip_tags(null).
 		add_submenu_page(
-			null,
+			'tools.php',
 			__( 'Edit Cron Event', 'oli-cron-jobs' ),
 			__( 'Edit Cron Event', 'oli-cron-jobs' ),
 			'manage_options',
 			'oli-cron-jobs-edit',
 			array( $this, 'render_edit_event_page' )
 		);
+		remove_submenu_page( 'tools.php', 'oli-cron-jobs-edit' );
 
 		add_submenu_page(
 			'tools.php',
@@ -107,7 +108,7 @@ class Oli_CJ_Admin {
 	 * @param string $hook Current admin page hook.
 	 */
 	public function enqueue_scripts( $hook ) {
-		if ( ! in_array( $hook, array( 'tools_page_oli-cron-jobs', 'tools_page_oli-cron-jobs-add', 'admin_page_oli-cron-jobs-edit', 'tools_page_oli-cron-jobs-schedules', 'tools_page_oli-cron-jobs-logs', 'tools_page_oli-cron-jobs-settings' ), true ) ) {
+		if ( ! in_array( $hook, array( 'tools_page_oli-cron-jobs', 'tools_page_oli-cron-jobs-add', 'tools_page_oli-cron-jobs-edit', 'admin_page_oli-cron-jobs-edit', 'tools_page_oli-cron-jobs-schedules', 'tools_page_oli-cron-jobs-logs', 'tools_page_oli-cron-jobs-settings' ), true ) ) {
 			return;
 		}
 
@@ -144,6 +145,16 @@ class Oli_CJ_Admin {
 			return;
 		}
 
+		if ( isset( $_POST['oli_cj_add_event'] ) ) {
+			$this->process_add_event_form();
+			return;
+		}
+
+		if ( isset( $_POST['oli_cj_edit_event'] ) ) {
+			$this->process_edit_event_form();
+			return;
+		}
+
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Page slug is used only to scope our actions.
 		if ( 0 !== strpos( $page, 'oli-cron-jobs' ) ) {
 			return;
@@ -167,7 +178,7 @@ class Oli_CJ_Admin {
 		}
 
 		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'oli_cj_action' ) ) {
-			wp_die( esc_html__( 'Security check failed.', 'oli-cron-jobs' ) );
+			$this->die_forbidden();
 		}
 
 		switch ( $action ) {
@@ -219,6 +230,196 @@ class Oli_CJ_Admin {
 	}
 
 	/**
+	 * Die with HTTP 403 when a nonce is missing or invalid.
+	 */
+	private function die_forbidden() {
+		wp_die(
+			esc_html__( 'Security check failed.', 'oli-cron-jobs' ),
+			esc_html__( 'Forbidden', 'oli-cron-jobs' ),
+			array( 'response' => 403 )
+		);
+	}
+
+	/**
+	 * Redirect to the events list with a status message.
+	 *
+	 * @param string $message Message slug.
+	 */
+	private function redirect_events( $message ) {
+		wp_safe_redirect( add_query_arg( 'message', $message, admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+		exit;
+	}
+
+	/**
+	 * Redirect to the add-event screen with a status message.
+	 *
+	 * @param string $message Message slug.
+	 */
+	private function redirect_add( $message ) {
+		wp_safe_redirect( add_query_arg( 'message', $message, admin_url( 'tools.php?page=oli-cron-jobs-add' ) ) );
+		exit;
+	}
+
+	/**
+	 * Process the add-event form on admin_init before any output.
+	 */
+	private function process_add_event_form() {
+		if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), 'oli_cj_add_event' ) ) {
+			$this->die_forbidden();
+		}
+
+		$parsed     = $this->parse_event_form();
+		$event_type = $parsed['event_type'];
+		$hook       = $parsed['hook'];
+		$schedule   = $parsed['schedule'];
+		$timestamp  = $parsed['timestamp'];
+		$args       = $parsed['args'];
+
+		if ( 'php' === $event_type ) {
+			if ( ! Oli_CJ_PHP_Events::can_manage() ) {
+				$this->redirect_add( 'php_event_forbidden' );
+			}
+
+			if ( '' === $hook ) {
+				$hook = Oli_CJ_PHP_Events::generate_hook();
+			}
+
+			if ( '' === $parsed['php_code'] ) {
+				$this->redirect_add( 'php_code_required' );
+			}
+
+			Oli_CJ_Cron_Manager::add_php_event( $hook, $timestamp, $parsed['php_code'], $args, $schedule );
+			$this->redirect_events( 'event_added' );
+		}
+
+		if ( 'url' === $event_type ) {
+			if ( '' === $hook ) {
+				$this->redirect_add( 'url_hook_required' );
+			}
+
+			if ( '' === $parsed['url'] ) {
+				$this->redirect_add( 'url_required' );
+			}
+
+			Oli_CJ_Cron_Manager::add_url_event( $hook, $timestamp, $parsed['url'], $args, $schedule );
+			$this->redirect_events( 'event_added' );
+		}
+
+		if ( '' === $hook ) {
+			$this->redirect_add( 'hook_required' );
+		}
+
+		Oli_CJ_Cron_Manager::add_event( $hook, $timestamp, $args, $schedule );
+		$this->redirect_events( 'event_added' );
+	}
+
+	/**
+	 * Process the edit-event form on admin_init before any output.
+	 */
+	private function process_edit_event_form() {
+		if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), 'oli_cj_edit_event' ) ) {
+			$this->die_forbidden();
+		}
+
+		$old_hook      = isset( $_POST['old_hook'] ) ? sanitize_text_field( wp_unslash( $_POST['old_hook'] ) ) : '';
+		$old_timestamp = isset( $_POST['old_timestamp'] ) ? absint( wp_unslash( $_POST['old_timestamp'] ) ) : 0;
+		$old_sig       = isset( $_POST['old_sig'] ) ? sanitize_text_field( wp_unslash( $_POST['old_sig'] ) ) : '';
+
+		if ( ! $old_hook || ! $old_timestamp || ! $old_sig ) {
+			$this->redirect_events( 'event_not_found' );
+		}
+
+		$parsed         = $this->parse_event_form();
+		$new_event_type = $parsed['event_type'];
+		$new_hook       = $parsed['hook'];
+		$new_schedule   = $parsed['schedule'];
+		$new_timestamp  = $parsed['timestamp'];
+		$new_args       = $parsed['args'];
+		$can_manage_php = Oli_CJ_PHP_Events::can_manage();
+
+		if ( 'php' === $new_event_type && ! $can_manage_php ) {
+			$this->redirect_events( 'php_event_forbidden' );
+		}
+
+		if ( '' === $new_hook && 'php' === $new_event_type && $can_manage_php ) {
+			$new_hook = Oli_CJ_PHP_Events::generate_hook();
+		}
+
+		if ( 'url' === $new_event_type && '' === $new_hook ) {
+			$this->redirect_events( 'url_hook_required' );
+		}
+
+		if ( 'url' === $new_event_type && '' === $parsed['url'] ) {
+			$this->redirect_events( 'url_required' );
+		}
+
+		if ( '' === $new_hook ) {
+			$this->redirect_events( 'hook_required' );
+		}
+
+		Oli_CJ_Cron_Manager::delete_event( $old_hook, $old_timestamp, $old_sig );
+
+		if ( $new_hook !== $old_hook ) {
+			Oli_CJ_PHP_Events::delete_code( $old_hook );
+			$url_events = Oli_CJ_Cron_Manager::get_plugin_option( 'oli_cj_url_events', array() );
+			if ( isset( $url_events[ $old_hook ] ) ) {
+				unset( $url_events[ $old_hook ] );
+				Oli_CJ_Cron_Manager::update_plugin_option( 'oli_cj_url_events', $url_events );
+			}
+		}
+
+		if ( 'php' === $new_event_type ) {
+			Oli_CJ_Cron_Manager::add_php_event( $new_hook, $new_timestamp, $parsed['php_code'], $new_args, $new_schedule );
+		} elseif ( 'url' === $new_event_type ) {
+			Oli_CJ_Cron_Manager::add_url_event( $new_hook, $new_timestamp, $parsed['url'], $new_args, $new_schedule );
+		} else {
+			Oli_CJ_Cron_Manager::add_event( $new_hook, $new_timestamp, $new_args, $new_schedule );
+		}
+
+		$this->redirect_events( 'event_updated' );
+	}
+
+	/**
+	 * Parse shared add/edit event form fields.
+	 *
+	 * @return array
+	 */
+	private function parse_event_form() {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Caller verified the form nonce.
+		$event_type    = isset( $_POST['event_type'] ) ? sanitize_key( wp_unslash( $_POST['event_type'] ) ) : 'standard';
+		$hook          = isset( $_POST['hook'] ) ? sanitize_text_field( wp_unslash( $_POST['hook'] ) ) : '';
+		$schedule      = isset( $_POST['schedule'] ) ? sanitize_text_field( wp_unslash( $_POST['schedule'] ) ) : '';
+		$timestamp_raw = isset( $_POST['timestamp'] ) ? sanitize_text_field( wp_unslash( $_POST['timestamp'] ) ) : '';
+		$timestamp     = Oli_CJ_Cron_Manager::parse_site_datetime( $timestamp_raw );
+		$url           = isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '';
+		$php_code      = isset( $_POST['php_code'] ) ? wp_unslash( $_POST['php_code'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- PHP events store user-authored code after capability checks.
+
+		if ( ! $timestamp ) {
+			$timestamp = time() + 3600;
+		}
+
+		$args = array();
+		if ( ! empty( $_POST['args'] ) ) {
+			$args_json = sanitize_textarea_field( wp_unslash( $_POST['args'] ) );
+			$args      = json_decode( $args_json, true );
+			if ( json_last_error() !== JSON_ERROR_NONE ) {
+				$args = array();
+			}
+		}
+
+		return array(
+			'event_type' => $event_type,
+			'hook'       => $hook,
+			'schedule'   => $schedule ? $schedule : false,
+			'timestamp'  => $timestamp,
+			'args'       => $args,
+			'url'        => $url,
+			'php_code'   => is_string( $php_code ) ? $php_code : '',
+		);
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/**
 	 * Handle delete event action
 	 */
 	private function handle_delete_event() {
@@ -251,9 +452,15 @@ class Oli_CJ_Admin {
 			exit;
 		}
 
-		Oli_CJ_Cron_Manager::run_event_now( $hook, $args );
+		$result = Oli_CJ_Cron_Manager::run_event_now( $hook, $args );
 
-		wp_safe_redirect( add_query_arg( 'message', 'event_ran', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+		wp_safe_redirect(
+			add_query_arg(
+				'message',
+				$result ? 'event_ran' : 'event_failed',
+				admin_url( 'tools.php?page=oli-cron-jobs' )
+			)
+		);
 		exit;
 	}
 
@@ -369,7 +576,7 @@ class Oli_CJ_Admin {
 			exit;
 		}
 
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fputcsv -- CSV download stream.
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fputcsv -- CSV download stream. Extra args avoid PHP 8.4 deprecation.
 		fputcsv(
 			$output,
 			array(
@@ -380,22 +587,28 @@ class Oli_CJ_Admin {
 				'Recurrence',
 				'Callbacks',
 				'Status',
-			)
+			),
+			',',
+			'"',
+			'\\'
 		);
 
 		foreach ( $rows as $row ) {
-			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fputcsv -- CSV download stream.
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fputcsv -- CSV download stream. Extra args avoid PHP 8.4 deprecation.
 			fputcsv(
 				$output,
 				array(
-					$row['hook'],
-					$row['args'],
-					$row['next_run_site'],
-					$row['next_run_utc'],
-					$row['recurrence'],
-					$row['callbacks'],
-					$row['status'],
-				)
+					Oli_CJ_Cron_Manager::escape_csv_cell( $row['hook'] ),
+					Oli_CJ_Cron_Manager::escape_csv_cell( $row['args'] ),
+					Oli_CJ_Cron_Manager::escape_csv_cell( $row['next_run_site'] ),
+					Oli_CJ_Cron_Manager::escape_csv_cell( $row['next_run_utc'] ),
+					Oli_CJ_Cron_Manager::escape_csv_cell( $row['recurrence'] ),
+					Oli_CJ_Cron_Manager::escape_csv_cell( $row['callbacks'] ),
+					Oli_CJ_Cron_Manager::escape_csv_cell( $row['status'] ),
+				),
+				',',
+				'"',
+				'\\'
 			);
 		}
 
@@ -420,7 +633,7 @@ class Oli_CJ_Admin {
 		}
 
 		if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), 'oli_cj_import' ) ) {
-			wp_die( esc_html__( 'Security check failed.', 'oli-cron-jobs' ) );
+			$this->die_forbidden();
 		}
 
 		if ( ! isset( $_FILES['import_file'] ) || ! isset( $_FILES['import_file']['error'] ) || UPLOAD_ERR_OK !== (int) $_FILES['import_file']['error'] ) {
@@ -627,51 +840,6 @@ class Oli_CJ_Admin {
 
 		$this->render_page_header( __( 'Add Cron Event', 'oli-cron-jobs' ) );
 
-		// Handle form submission.
-		if ( isset( $_POST['oli_cj_add_event'] ) && check_admin_referer( 'oli_cj_add_event' ) ) {
-			$event_type    = isset( $_POST['event_type'] ) ? sanitize_key( wp_unslash( $_POST['event_type'] ) ) : 'standard';
-			$hook          = isset( $_POST['hook'] ) ? sanitize_text_field( wp_unslash( $_POST['hook'] ) ) : '';
-			$schedule      = isset( $_POST['schedule'] ) ? sanitize_text_field( wp_unslash( $_POST['schedule'] ) ) : '';
-			$timestamp_raw = isset( $_POST['timestamp'] ) ? sanitize_text_field( wp_unslash( $_POST['timestamp'] ) ) : '';
-			$timestamp     = Oli_CJ_Cron_Manager::parse_site_datetime( $timestamp_raw );
-
-			if ( ! $timestamp ) {
-				$timestamp = time() + 3600;
-			}
-
-			$args = array();
-			if ( ! empty( $_POST['args'] ) ) {
-				$args_json = sanitize_textarea_field( wp_unslash( $_POST['args'] ) );
-				$args      = json_decode( $args_json, true );
-				if ( json_last_error() !== JSON_ERROR_NONE ) {
-					$args = array();
-				}
-			}
-
-			if ( 'php' === $event_type ) {
-				if ( ! Oli_CJ_PHP_Events::can_manage() ) {
-					echo '<div class="notice notice-error"><p>' . esc_html( Oli_CJ_PHP_Events::management_block_reason() ) . '</p></div>';
-				} else {
-					$php_code = isset( $_POST['php_code'] ) ? wp_unslash( $_POST['php_code'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- PHP events store user-authored code after capability checks.
-					$php_code = is_string( $php_code ) ? $php_code : '';
-					if ( '' === $hook ) {
-						$hook = Oli_CJ_PHP_Events::generate_hook();
-					}
-					if ( '' !== $php_code ) {
-						Oli_CJ_Cron_Manager::add_php_event( $hook, $timestamp, $php_code, $args, $schedule ? $schedule : false );
-						echo '<div class="notice notice-success"><p>' . esc_html__( 'PHP cron event added successfully.', 'oli-cron-jobs' ) . '</p></div>';
-					}
-				}
-			} elseif ( $hook && 'url' === $event_type && ! empty( $_POST['url'] ) ) {
-				$url = esc_url_raw( wp_unslash( $_POST['url'] ) );
-				Oli_CJ_Cron_Manager::add_url_event( $hook, $timestamp, $url, $args, $schedule ? $schedule : false );
-				echo '<div class="notice notice-success"><p>' . esc_html__( 'URL cron event added successfully.', 'oli-cron-jobs' ) . '</p></div>';
-			} elseif ( $hook ) {
-				Oli_CJ_Cron_Manager::add_event( $hook, $timestamp, $args, $schedule ? $schedule : false );
-				echo '<div class="notice notice-success"><p>' . esc_html__( 'Cron event added successfully.', 'oli-cron-jobs' ) . '</p></div>';
-			}
-		}
-
 		$schedules      = Oli_CJ_Schedule_Manager::get_all_schedules();
 		$can_manage_php = Oli_CJ_PHP_Events::can_manage();
 		$php_block      = Oli_CJ_PHP_Events::management_block_reason();
@@ -680,6 +848,7 @@ class Oli_CJ_Admin {
 		<div class="wrap">
 			<h1><?php echo esc_html__( 'Add Cron Event', 'oli-cron-jobs' ); ?></h1>
 
+			<?php $this->render_messages(); ?>
 			<?php $this->render_php_warning(); ?>
 
 			<form method="post" action="">
@@ -815,61 +984,6 @@ class Oli_CJ_Admin {
 			return;
 		}
 
-		// Handle form submission.
-		if ( isset( $_POST['oli_cj_edit_event'] ) && check_admin_referer( 'oli_cj_edit_event' ) ) {
-			$new_event_type    = isset( $_POST['event_type'] ) ? sanitize_key( wp_unslash( $_POST['event_type'] ) ) : 'standard';
-			$new_hook          = isset( $_POST['hook'] ) ? sanitize_text_field( wp_unslash( $_POST['hook'] ) ) : '';
-			$new_schedule      = isset( $_POST['schedule'] ) ? sanitize_text_field( wp_unslash( $_POST['schedule'] ) ) : '';
-			$new_timestamp_raw = isset( $_POST['timestamp'] ) ? sanitize_text_field( wp_unslash( $_POST['timestamp'] ) ) : '';
-			$new_timestamp     = Oli_CJ_Cron_Manager::parse_site_datetime( $new_timestamp_raw );
-
-			if ( ! $new_timestamp ) {
-				$new_timestamp = time() + 3600;
-			}
-
-			$new_args = array();
-			if ( ! empty( $_POST['args'] ) ) {
-				$args_json = sanitize_textarea_field( wp_unslash( $_POST['args'] ) );
-				$new_args  = json_decode( $args_json, true );
-				if ( json_last_error() !== JSON_ERROR_NONE ) {
-					$new_args = array();
-				}
-			}
-
-			if ( 'php' === $new_event_type && ! $can_manage_php ) {
-				echo '<div class="notice notice-error"><p>' . esc_html( Oli_CJ_PHP_Events::management_block_reason() ) . '</p></div>';
-			} elseif ( $new_hook || ( 'php' === $new_event_type && $can_manage_php ) ) {
-				if ( '' === $new_hook && 'php' === $new_event_type ) {
-					$new_hook = Oli_CJ_PHP_Events::generate_hook();
-				}
-
-				Oli_CJ_Cron_Manager::delete_event( $hook, $timestamp, $sig );
-
-				if ( $new_hook !== $hook ) {
-					Oli_CJ_PHP_Events::delete_code( $hook );
-					$url_events = Oli_CJ_Cron_Manager::get_plugin_option( 'oli_cj_url_events', array() );
-					if ( isset( $url_events[ $hook ] ) ) {
-						unset( $url_events[ $hook ] );
-						Oli_CJ_Cron_Manager::update_plugin_option( 'oli_cj_url_events', $url_events );
-					}
-				}
-
-				if ( 'php' === $new_event_type ) {
-					$new_php = isset( $_POST['php_code'] ) ? wp_unslash( $_POST['php_code'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- PHP events store user-authored code after capability checks.
-					$new_php = is_string( $new_php ) ? $new_php : '';
-					Oli_CJ_Cron_Manager::add_php_event( $new_hook, $new_timestamp, $new_php, $new_args, $new_schedule ? $new_schedule : false );
-				} elseif ( 'url' === $new_event_type && ! empty( $_POST['url'] ) ) {
-					$new_url = esc_url_raw( wp_unslash( $_POST['url'] ) );
-					Oli_CJ_Cron_Manager::add_url_event( $new_hook, $new_timestamp, $new_url, $new_args, $new_schedule ? $new_schedule : false );
-				} else {
-					Oli_CJ_Cron_Manager::add_event( $new_hook, $new_timestamp, $new_args, $new_schedule ? $new_schedule : false );
-				}
-
-				wp_safe_redirect( add_query_arg( 'message', 'event_updated', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
-				exit;
-			}
-		}
-
 		$schedules        = Oli_CJ_Schedule_Manager::get_all_schedules();
 		$current_schedule = isset( $event['schedule'] ) ? $event['schedule'] : '';
 		$php_needs_check  = ( 'php' === $event_type && Oli_CJ_PHP_Events::needs_checking( $hook ) );
@@ -877,6 +991,7 @@ class Oli_CJ_Admin {
 		<div class="wrap">
 			<h1><?php echo esc_html__( 'Edit Cron Event', 'oli-cron-jobs' ); ?></h1>
 
+			<?php $this->render_messages(); ?>
 			<?php $this->render_php_warning(); ?>
 			<?php if ( $php_needs_check ) : ?>
 				<div class="notice notice-warning"><p><?php echo esc_html__( 'This PHP event needs checking. Re-save it to refresh the integrity hash before it can run.', 'oli-cron-jobs' ); ?></p></div>
@@ -884,6 +999,9 @@ class Oli_CJ_Admin {
 
 			<form method="post" action="">
 				<?php wp_nonce_field( 'oli_cj_edit_event' ); ?>
+				<input type="hidden" name="old_hook" value="<?php echo esc_attr( $event['hook'] ); ?>" />
+				<input type="hidden" name="old_timestamp" value="<?php echo esc_attr( (string) $event['timestamp'] ); ?>" />
+				<input type="hidden" name="old_sig" value="<?php echo esc_attr( $event['sig'] ); ?>" />
 				
 				<table class="form-table">
 					<tr>
@@ -1310,11 +1428,18 @@ class Oli_CJ_Admin {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only redirect message.
 		$message  = sanitize_text_field( wp_unslash( $_GET['message'] ) );
 		$messages = array(
+			'event_added'         => __( 'Cron event added successfully.', 'oli-cron-jobs' ),
 			'event_deleted'       => __( 'Event deleted successfully.', 'oli-cron-jobs' ),
 			'event_updated'       => __( 'Event updated successfully.', 'oli-cron-jobs' ),
 			'event_ran'           => __( 'Event executed successfully.', 'oli-cron-jobs' ),
+			'event_failed'        => __( 'The event did not run successfully.', 'oli-cron-jobs' ),
+			'event_not_found'     => __( 'Event not found.', 'oli-cron-jobs' ),
 			'php_event_blocked'   => __( 'This PHP cron event could not be executed.', 'oli-cron-jobs' ),
 			'php_event_forbidden' => __( 'You do not have permission to manage PHP cron events.', 'oli-cron-jobs' ),
+			'php_code_required'   => __( 'Enter PHP code for this event.', 'oli-cron-jobs' ),
+			'url_hook_required'   => __( 'A hook name is required for URL cron events.', 'oli-cron-jobs' ),
+			'url_required'        => __( 'Enter a URL for this event.', 'oli-cron-jobs' ),
+			'hook_required'       => __( 'A hook name is required.', 'oli-cron-jobs' ),
 			'hook_paused'         => __( 'Hook paused successfully.', 'oli-cron-jobs' ),
 			'hook_resumed'        => __( 'Hook resumed successfully.', 'oli-cron-jobs' ),
 			'schedule_deleted'    => __( 'Schedule deleted successfully.', 'oli-cron-jobs' ),
@@ -1325,7 +1450,16 @@ class Oli_CJ_Admin {
 		);
 
 		if ( isset( $messages[ $message ] ) ) {
-			$warning_messages = array( 'php_event_blocked', 'php_event_forbidden' );
+			$warning_messages = array(
+				'php_event_blocked',
+				'php_event_forbidden',
+				'event_failed',
+				'event_not_found',
+				'php_code_required',
+				'url_hook_required',
+				'url_required',
+				'hook_required',
+			);
 			$notice_class     = in_array( $message, $warning_messages, true ) ? 'notice-warning' : 'notice-success';
 			echo '<div class="notice ' . esc_attr( $notice_class ) . ' is-dismissible"><p>' . esc_html( $messages[ $message ] ) . '</p></div>';
 		}
@@ -1338,8 +1472,8 @@ class Oli_CJ_Admin {
 		?>
 		<div class="oli-cj-php-warning">
 			<h3><?php echo esc_html__( 'PHP cron events', 'oli-cron-jobs' ); ?></h3>
-			<p><?php echo esc_html__( 'PHP events execute arbitrary PHP when they run. Managing them requires the edit_files capability, the same permission as the plugin and theme editors. They cannot be added or edited when DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS is set.', 'oli-cron-jobs' ); ?></p>
-			<p><?php echo esc_html__( 'Stored PHP is protected with an integrity hash. If the code is changed outside this screen, the event will not run until it is re-saved.', 'oli-cron-jobs' ); ?></p>
+			<p><?php echo esc_html__( 'PHP events run stored PHP with eval() when they fire. Managing them requires the edit_files capability, the same permission as the plugin and theme editors. They cannot be added, edited, or executed when DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS is set.', 'oli-cron-jobs' ); ?></p>
+			<p><?php echo esc_html__( 'Stored PHP is protected with an integrity hash. If the code is changed outside this screen, the event will not run until it is re-saved. Only create PHP events with code you trust.', 'oli-cron-jobs' ); ?></p>
 		</div>
 		<?php
 	}
