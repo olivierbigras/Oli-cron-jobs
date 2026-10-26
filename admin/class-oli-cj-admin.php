@@ -202,12 +202,29 @@ class Oli_CJ_Admin {
 	}
 
 	/**
+	 * Read a sanitized GET value after handle_actions() verified the nonce.
+	 *
+	 * @param string $key           Query key.
+	 * @param string $default_value Default value.
+	 * @return string
+	 */
+	private function get_action_text( $key, $default_value = '' ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce verified in handle_actions().
+		if ( ! isset( $_GET[ $key ] ) ) {
+			return $default_value;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce verified in handle_actions().
+		return sanitize_text_field( wp_unslash( $_GET[ $key ] ) );
+	}
+
+	/**
 	 * Handle delete event action
 	 */
 	private function handle_delete_event() {
-		$hook      = isset( $_GET['hook'] ) ? sanitize_text_field( wp_unslash( $_GET['hook'] ) ) : '';
-		$timestamp = isset( $_GET['timestamp'] ) ? absint( $_GET['timestamp'] ) : 0;
-		$sig       = isset( $_GET['sig'] ) ? sanitize_text_field( wp_unslash( $_GET['sig'] ) ) : '';
+		$hook      = $this->get_action_text( 'hook' );
+		$timestamp = absint( $this->get_action_text( 'timestamp', '0' ) );
+		$sig       = $this->get_action_text( 'sig' );
 
 		if ( Oli_CJ_Cron_Manager::is_php_event( $hook ) && ! Oli_CJ_PHP_Events::can_manage() ) {
 			wp_safe_redirect( add_query_arg( 'message', 'php_event_forbidden', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
@@ -224,8 +241,8 @@ class Oli_CJ_Admin {
 	 * Handle run now action
 	 */
 	private function handle_run_now() {
-		$hook      = isset( $_GET['hook'] ) ? sanitize_text_field( wp_unslash( $_GET['hook'] ) ) : '';
-		$args_json = isset( $_GET['args'] ) ? sanitize_text_field( wp_unslash( $_GET['args'] ) ) : '[]';
+		$hook      = $this->get_action_text( 'hook' );
+		$args_json = $this->get_action_text( 'args', '[]' );
 		$args      = json_decode( $args_json, true );
 		$args      = is_array( $args ) ? $args : array();
 
@@ -244,7 +261,7 @@ class Oli_CJ_Admin {
 	 * Handle pause hook action
 	 */
 	private function handle_pause_hook() {
-		$hook = isset( $_GET['hook'] ) ? sanitize_text_field( wp_unslash( $_GET['hook'] ) ) : '';
+		$hook = $this->get_action_text( 'hook' );
 
 		if ( Oli_CJ_Cron_Manager::pause_hook( $hook ) ) {
 			wp_safe_redirect( add_query_arg( 'message', 'hook_paused', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
@@ -256,7 +273,7 @@ class Oli_CJ_Admin {
 	 * Handle resume hook action
 	 */
 	private function handle_resume_hook() {
-		$hook = isset( $_GET['hook'] ) ? sanitize_text_field( wp_unslash( $_GET['hook'] ) ) : '';
+		$hook = $this->get_action_text( 'hook' );
 
 		if ( Oli_CJ_Cron_Manager::resume_hook( $hook ) ) {
 			wp_safe_redirect( add_query_arg( 'message', 'hook_resumed', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
@@ -268,7 +285,7 @@ class Oli_CJ_Admin {
 	 * Handle delete schedule action
 	 */
 	private function handle_delete_schedule() {
-		$schedule = isset( $_GET['schedule'] ) ? sanitize_text_field( wp_unslash( $_GET['schedule'] ) ) : '';
+		$schedule = $this->get_action_text( 'schedule' );
 
 		if ( Oli_CJ_Schedule_Manager::delete_schedule( $schedule ) ) {
 			wp_safe_redirect( add_query_arg( 'message', 'schedule_deleted', admin_url( 'tools.php?page=oli-cron-jobs-schedules' ) ) );
@@ -339,18 +356,20 @@ class Oli_CJ_Admin {
 	 * Export the current event list as CSV.
 	 */
 	private function handle_export_csv() {
-		$events = Oli_CJ_Cron_Manager::get_all_events();
-		$rows   = Oli_CJ_Cron_Manager::get_csv_rows( $events );
+		$events   = Oli_CJ_Cron_Manager::get_all_events();
+		$rows     = Oli_CJ_Cron_Manager::get_csv_rows( $events );
 		$filename = 'oli-cron-jobs-events-' . gmdate( 'Y-m-d-H-i-s' ) . '.csv';
 
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
 
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- php://output stream for a CSV download.
 		$output = fopen( 'php://output', 'w' );
 		if ( ! $output ) {
 			exit;
 		}
 
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fputcsv -- CSV download stream.
 		fputcsv(
 			$output,
 			array(
@@ -365,6 +384,7 @@ class Oli_CJ_Admin {
 		);
 
 		foreach ( $rows as $row ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fputcsv -- CSV download stream.
 			fputcsv(
 				$output,
 				array(
@@ -379,7 +399,6 @@ class Oli_CJ_Admin {
 			);
 		}
 
-		fclose( $output );
 		exit;
 	}
 
@@ -653,10 +672,10 @@ class Oli_CJ_Admin {
 			}
 		}
 
-		$schedules       = Oli_CJ_Schedule_Manager::get_all_schedules();
-		$can_manage_php  = Oli_CJ_PHP_Events::can_manage();
-		$php_block       = Oli_CJ_PHP_Events::management_block_reason();
-		$next_run_input  = Oli_CJ_Cron_Manager::format_site_datetime_input( time() + 3600 );
+		$schedules      = Oli_CJ_Schedule_Manager::get_all_schedules();
+		$can_manage_php = Oli_CJ_PHP_Events::can_manage();
+		$php_block      = Oli_CJ_PHP_Events::management_block_reason();
+		$next_run_input = Oli_CJ_Cron_Manager::format_site_datetime_input( time() + 3600 );
 		?>
 		<div class="wrap">
 			<h1><?php echo esc_html__( 'Add Cron Event', 'oli-cron-jobs' ); ?></h1>
@@ -1291,18 +1310,18 @@ class Oli_CJ_Admin {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only redirect message.
 		$message  = sanitize_text_field( wp_unslash( $_GET['message'] ) );
 		$messages = array(
-			'event_deleted'     => __( 'Event deleted successfully.', 'oli-cron-jobs' ),
-			'event_updated'     => __( 'Event updated successfully.', 'oli-cron-jobs' ),
-			'event_ran'         => __( 'Event executed successfully.', 'oli-cron-jobs' ),
-			'php_event_blocked'    => __( 'This PHP cron event could not be executed.', 'oli-cron-jobs' ),
-			'php_event_forbidden'  => __( 'You do not have permission to manage PHP cron events.', 'oli-cron-jobs' ),
-			'hook_paused'          => __( 'Hook paused successfully.', 'oli-cron-jobs' ),
-			'hook_resumed'         => __( 'Hook resumed successfully.', 'oli-cron-jobs' ),
-			'schedule_deleted'     => __( 'Schedule deleted successfully.', 'oli-cron-jobs' ),
-			'logs_cleared'         => __( 'Logs cleared successfully.', 'oli-cron-jobs' ),
-			'exported'             => __( 'Data exported successfully.', 'oli-cron-jobs' ),
-			'imported'             => __( 'Data imported successfully.', 'oli-cron-jobs' ),
-			'spawn_tested'         => __( 'Cron spawn test finished. See the WP-Cron status panel for the result.', 'oli-cron-jobs' ),
+			'event_deleted'       => __( 'Event deleted successfully.', 'oli-cron-jobs' ),
+			'event_updated'       => __( 'Event updated successfully.', 'oli-cron-jobs' ),
+			'event_ran'           => __( 'Event executed successfully.', 'oli-cron-jobs' ),
+			'php_event_blocked'   => __( 'This PHP cron event could not be executed.', 'oli-cron-jobs' ),
+			'php_event_forbidden' => __( 'You do not have permission to manage PHP cron events.', 'oli-cron-jobs' ),
+			'hook_paused'         => __( 'Hook paused successfully.', 'oli-cron-jobs' ),
+			'hook_resumed'        => __( 'Hook resumed successfully.', 'oli-cron-jobs' ),
+			'schedule_deleted'    => __( 'Schedule deleted successfully.', 'oli-cron-jobs' ),
+			'logs_cleared'        => __( 'Logs cleared successfully.', 'oli-cron-jobs' ),
+			'exported'            => __( 'Data exported successfully.', 'oli-cron-jobs' ),
+			'imported'            => __( 'Data imported successfully.', 'oli-cron-jobs' ),
+			'spawn_tested'        => __( 'Cron spawn test finished. See the WP-Cron status panel for the result.', 'oli-cron-jobs' ),
 		);
 
 		if ( isset( $messages[ $message ] ) ) {

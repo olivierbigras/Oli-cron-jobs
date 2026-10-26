@@ -223,9 +223,9 @@ class Oli_CJ_PHP_Events {
 	 * @return bool
 	 */
 	public static function save_code( $hook, $code ) {
-		$code                    = self::strip_opening_tag( $code );
-		$php_events              = self::get_all();
-		$php_events[ $hook ]     = array(
+		$code                = self::strip_opening_tag( $code );
+		$php_events          = self::get_all();
+		$php_events[ $hook ] = array(
 			'code' => $code,
 			'hash' => self::hash_code( $code ),
 		);
@@ -348,9 +348,11 @@ class Oli_CJ_PHP_Events {
 	 *
 	 * @param string $code PHP code without an opening tag.
 	 * @return void
+	 * @throws RuntimeException If the temporary file cannot be created or written.
 	 */
 	private static function run_code( $code ) {
 		$dir = get_temp_dir();
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- Temporary runtime file, not a theme/plugin edit.
 		if ( ! is_dir( $dir ) || ! is_writable( $dir ) ) {
 			throw new RuntimeException( 'The temporary directory is not writable.' );
 		}
@@ -361,8 +363,9 @@ class Oli_CJ_PHP_Events {
 		}
 
 		$file = $base . '.php';
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.rename_rename -- Temporary runtime file rename.
 		if ( ! rename( $base, $file ) ) {
-			unlink( $base );
+			wp_delete_file( $base );
 			throw new RuntimeException( 'Unable to prepare a temporary PHP event file.' );
 		}
 
@@ -371,7 +374,7 @@ class Oli_CJ_PHP_Events {
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- Short-lived runtime include, not a theme/plugin edit.
 		$written = file_put_contents( $file, $wrapped, LOCK_EX );
 		if ( false === $written ) {
-			unlink( $file );
+			wp_delete_file( $file );
 			throw new RuntimeException( 'Unable to write the temporary PHP event file.' );
 		}
 
@@ -379,7 +382,7 @@ class Oli_CJ_PHP_Events {
 			include $file; // phpcs:ignore WordPressVIPMinimum.Files.IncludingFile.UsingVariable -- Integrity-checked user PHP event.
 		} finally {
 			if ( file_exists( $file ) ) {
-				unlink( $file );
+				wp_delete_file( $file );
 			}
 		}
 	}

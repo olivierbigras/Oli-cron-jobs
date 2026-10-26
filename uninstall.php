@@ -38,15 +38,15 @@ function oli_cj_uninstall_site() {
 }
 
 if ( is_multisite() ) {
-	$site_ids = get_sites(
+	$oli_cj_site_ids = get_sites(
 		array(
 			'fields' => 'ids',
 			'number' => 0,
 		)
 	);
 
-	foreach ( $site_ids as $site_id ) {
-		switch_to_blog( (int) $site_id );
+	foreach ( $oli_cj_site_ids as $oli_cj_site_id ) {
+		switch_to_blog( (int) $oli_cj_site_id );
 		oli_cj_uninstall_site();
 		restore_current_blog();
 	}

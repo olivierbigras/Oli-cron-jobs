@@ -161,7 +161,7 @@ class Oli_CJ_Logger {
 
 		array_unshift( $where_values, $table_name );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Custom table; SQL built from whitelisted fragments.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom table; SQL built from whitelisted fragments then prepared.
 		return $wpdb->get_results( $wpdb->prepare( $sql, $where_values ) );
 	}
 
@@ -190,7 +190,7 @@ class Oli_CJ_Logger {
 
 		$sql = "SELECT COUNT(*) FROM %i WHERE $where_sql";
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Custom table; SQL built from whitelisted fragments.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- Custom table; SQL built from whitelisted fragments then prepared.
 		return absint( $wpdb->get_var( $wpdb->prepare( $sql, $where_values ) ) );
 	}
 
