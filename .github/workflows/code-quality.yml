@@ -50,7 +50,7 @@ jobs:
     - name: Run PHPCS
       run: |
         set -o pipefail
-        vendor/bin/phpcs --standard=WordPress --extensions=php --ignore=vendor/,tests/,bin/ --report=checkstyle . | cs2pr
+        vendor/bin/phpcs --standard=WordPress-Extra --extensions=php --ignore=vendor/,tests/,bin/ --report=checkstyle . | cs2pr
 
   plugin-check:
     name: Plugin Check

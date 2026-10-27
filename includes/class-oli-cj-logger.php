@@ -44,41 +44,11 @@ class Oli_CJ_Logger {
 	 * Initialize hooks
 	 */
 	private function init_hooks() {
-		add_action( 'all', array( $this, 'maybe_log_cron_event' ), 10, 3 );
 		add_action( 'oli_cj_cleanup_logs', array( $this, 'cleanup_old_logs' ) );
 
 		if ( ! wp_next_scheduled( 'oli_cj_cleanup_logs' ) ) {
 			wp_schedule_event( time(), 'daily', 'oli_cj_cleanup_logs' );
 		}
-	}
-
-	/**
-	 * Maybe log a cron event
-	 *
-	 * @param string $hook Hook name.
-	 */
-	public function maybe_log_cron_event( $hook ) {
-		static $handling = false;
-
-		if ( $handling ) {
-			return;
-		}
-
-		if ( ! defined( 'DOING_CRON' ) || ! DOING_CRON ) {
-			return;
-		}
-
-		if ( 'oli_cj_cleanup_logs' === $hook ) {
-			return;
-		}
-
-		$handling   = true;
-		$args       = func_num_args() > 1 ? array_slice( func_get_args(), 1 ) : array();
-		$start_time = microtime( true );
-
-		$GLOBALS['oli_cj_event_start'][ $hook ] = $start_time;
-		unset( $args );
-		$handling = false;
 	}
 
 	/**
@@ -162,37 +132,42 @@ class Oli_CJ_Logger {
 			'order'      => 'DESC',
 		);
 
-		$args         = wp_parse_args( $args, $defaults );
-		$table_name   = self::table_name();
-		$limit        = absint( $args['limit'] );
-		$offset       = absint( $args['offset'] );
-		$order        = 'ASC' === strtoupper( $args['order'] ) ? 'ASC' : 'DESC';
-		$where_sql    = '1=1';
-		$where_values = array();
+		$args       = wp_parse_args( $args, $defaults );
+		$hook       = (string) $args['hook'];
+		$event_type = (string) $args['event_type'];
+		$limit      = absint( $args['limit'] );
+		$offset     = absint( $args['offset'] );
 
-		if ( ! empty( $args['hook'] ) ) {
-			$where_sql     .= ' AND hook = %s';
-			$where_values[] = $args['hook'];
+		// Empty filters match every row, so the SQL stays a fixed, fully prepared string.
+		if ( 'ASC' === strtoupper( (string) $args['order'] ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom plugin table.
+			return $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT * FROM %i WHERE ( %s = '' OR hook = %s ) AND ( %s = '' OR event_type = %s ) ORDER BY created_at ASC LIMIT %d OFFSET %d",
+					self::table_name(),
+					$hook,
+					$hook,
+					$event_type,
+					$event_type,
+					$limit,
+					$offset
+				)
+			);
 		}
 
-		if ( ! empty( $args['event_type'] ) ) {
-			$where_sql     .= ' AND event_type = %s';
-			$where_values[] = $args['event_type'];
-		}
-
-		$where_values[] = $limit;
-		$where_values[] = $offset;
-
-		if ( 'ASC' === $order ) {
-			$sql = "SELECT * FROM %i WHERE $where_sql ORDER BY created_at ASC LIMIT %d OFFSET %d";
-		} else {
-			$sql = "SELECT * FROM %i WHERE $where_sql ORDER BY created_at DESC LIMIT %d OFFSET %d";
-		}
-
-		array_unshift( $where_values, $table_name );
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Custom table; SQL built from whitelisted fragments.
-		return $wpdb->get_results( $wpdb->prepare( $sql, $where_values ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom plugin table.
+		return $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM %i WHERE ( %s = '' OR hook = %s ) AND ( %s = '' OR event_type = %s ) ORDER BY created_at DESC LIMIT %d OFFSET %d",
+				self::table_name(),
+				$hook,
+				$hook,
+				$event_type,
+				$event_type,
+				$limit,
+				$offset
+			)
+		);
 	}
 
 	/**
@@ -204,24 +179,22 @@ class Oli_CJ_Logger {
 	public static function get_log_count( $args = array() ) {
 		global $wpdb;
 
-		$table_name   = self::table_name();
-		$where_sql    = '1=1';
-		$where_values = array( $table_name );
+		$hook       = isset( $args['hook'] ) ? (string) $args['hook'] : '';
+		$event_type = isset( $args['event_type'] ) ? (string) $args['event_type'] : '';
 
-		if ( ! empty( $args['hook'] ) ) {
-			$where_sql     .= ' AND hook = %s';
-			$where_values[] = $args['hook'];
-		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Custom plugin table.
+		$count = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM %i WHERE ( %s = '' OR hook = %s ) AND ( %s = '' OR event_type = %s )",
+				self::table_name(),
+				$hook,
+				$hook,
+				$event_type,
+				$event_type
+			)
+		);
 
-		if ( ! empty( $args['event_type'] ) ) {
-			$where_sql     .= ' AND event_type = %s';
-			$where_values[] = $args['event_type'];
-		}
-
-		$sql = "SELECT COUNT(*) FROM %i WHERE $where_sql";
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- Custom table; SQL built from whitelisted fragments.
-		return absint( $wpdb->get_var( $wpdb->prepare( $sql, $where_values ) ) );
+		return absint( $count );
 	}
 
 	/**
@@ -254,6 +227,53 @@ class Oli_CJ_Logger {
 		$result = $wpdb->query( $wpdb->prepare( 'TRUNCATE TABLE %i', self::table_name() ) );
 
 		return false !== $result;
+	}
+
+	/**
+	 * Translate a stored log error message for display.
+	 *
+	 * Known English strings recorded by the plugin are mapped to __().
+	 * Unknown messages (exceptions, HTTP errors, older rows) are returned
+	 * unchanged so existing log rows keep their stored text.
+	 *
+	 * @param string $message Stored error message.
+	 * @return string
+	 */
+	public static function translate_error_message( $message ) {
+		$message = (string) $message;
+
+		if ( '' === $message ) {
+			return '';
+		}
+
+		$known = array(
+			'Hook is paused'                       => __( 'Hook is paused', 'oli-cron-jobs' ),
+			'PHP events are disabled'              => __( 'PHP events are disabled', 'oli-cron-jobs' ),
+			'PHP event failed the integrity check' => __( 'PHP event failed the integrity check', 'oli-cron-jobs' ),
+			'URL event failed the integrity check' => __( 'URL event failed the integrity check', 'oli-cron-jobs' ),
+			'PHP events cannot be executed while file editing is disabled.' => __( 'PHP events cannot be executed while file editing is disabled.', 'oli-cron-jobs' ),
+		);
+
+		return isset( $known[ $message ] ) ? $known[ $message ] : $message;
+	}
+
+	/**
+	 * Translate a stored log event type for display.
+	 *
+	 * @param string $event_type Stored event type slug.
+	 * @return string
+	 */
+	public static function translate_event_type( $event_type ) {
+		$event_type = (string) $event_type;
+		$labels     = array(
+			'standard' => __( 'Standard', 'oli-cron-jobs' ),
+			'manual'   => __( 'Manual', 'oli-cron-jobs' ),
+			'php'      => __( 'PHP', 'oli-cron-jobs' ),
+			'url'      => __( 'URL', 'oli-cron-jobs' ),
+			'blocked'  => __( 'Blocked', 'oli-cron-jobs' ),
+		);
+
+		return isset( $labels[ $event_type ] ) ? $labels[ $event_type ] : $event_type;
 	}
 
 	/**

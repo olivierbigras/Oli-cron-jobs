@@ -46,7 +46,9 @@ class Oli_CJ_Plugin {
 	 * Load plugin dependencies
 	 */
 	private function load_dependencies() {
+		require_once OLI_CJ_PLUGIN_DIR . 'includes/oli-cj-ownership.php';
 		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-cron-manager.php';
+		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-php-events.php';
 		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-schedule-manager.php';
 		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-logger.php';
 		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-site-health.php';
@@ -66,7 +68,6 @@ class Oli_CJ_Plugin {
 	 * Initialize hooks
 	 */
 	private function init_hooks() {
-		add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
 		add_action( 'init', array( $this, 'init' ) );
 
 		// Register URL handlers and pause guards now, not on a later init callback.
@@ -74,16 +75,10 @@ class Oli_CJ_Plugin {
 	}
 
 	/**
-	 * Load text domain for translations
-	 */
-	public function load_textdomain() {
-		load_plugin_textdomain( 'oli-cron-jobs', false, dirname( plugin_basename( OLI_CJ_PLUGIN_FILE ) ) . '/languages' );
-	}
-
-	/**
 	 * Initialize plugin components
 	 */
 	public function init() {
+		Oli_CJ_PHP_Events::grant_default_caps();
 		Oli_CJ_Cron_Manager::register_event_handlers();
 		Oli_CJ_Cron_Manager::register_paused_hook_guards();
 		Oli_CJ_Logger::get_instance();
@@ -104,11 +99,13 @@ class Oli_CJ_Plugin {
 	 */
 	public static function activate() {
 		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-logger.php';
+		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-php-events.php';
 
 		if ( false === get_option( 'oli_cj_log_retention_days' ) ) {
 			update_option( 'oli_cj_log_retention_days', 30 );
 		}
 
+		Oli_CJ_PHP_Events::grant_default_caps();
 		self::maybe_upgrade();
 
 		flush_rewrite_rules();
@@ -128,9 +125,11 @@ class Oli_CJ_Plugin {
 		Oli_CJ_Logger::create_table();
 
 		self::migrate_legacy_options();
+		self::migrate_managed_hooks();
 
-		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-cron-manager.php';
-		Oli_CJ_Cron_Manager::disable_legacy_php_events();
+		if ( class_exists( 'Oli_CJ_PHP_Events' ) ) {
+			Oli_CJ_PHP_Events::grant_default_caps();
+		}
 
 		update_option( 'oli_cj_version', OLI_CJ_VERSION );
 	}
@@ -163,6 +162,39 @@ class Oli_CJ_Plugin {
 			}
 
 			delete_option( $old_key );
+		}
+	}
+
+	/**
+	 * Keep only clearly plugin-created names in oli_cj_managed_hooks.
+	 *
+	 * Older versions marked every edited or imported hook as managed.
+	 * Names we cannot prove we created are dropped so uninstall leaves them.
+	 */
+	private static function migrate_managed_hooks() {
+		require_once OLI_CJ_PLUGIN_DIR . 'includes/oli-cj-ownership.php';
+
+		$url_events = get_option( 'oli_cj_url_events', array() );
+		$php_events = get_option( 'oli_cj_php_events', array() );
+		$managed    = get_option( 'oli_cj_managed_hooks', array() );
+		$kept       = oli_cj_migrate_managed_hooks(
+			is_array( $managed ) ? $managed : array(),
+			is_array( $url_events ) ? $url_events : array(),
+			is_array( $php_events ) ? $php_events : array()
+		);
+
+		$existing_created = get_option( 'oli_cj_created_hooks', array() );
+		if ( ! is_array( $existing_created ) ) {
+			$existing_created = array();
+		}
+
+		$created = array_values( array_unique( array_merge( $kept, $existing_created ) ) );
+
+		update_option( 'oli_cj_managed_hooks', $kept );
+		update_option( 'oli_cj_created_hooks', $created );
+		if ( class_exists( 'Oli_CJ_Cron_Manager' ) ) {
+			Oli_CJ_Cron_Manager::update_plugin_option( 'oli_cj_managed_hooks', $kept );
+			Oli_CJ_Cron_Manager::update_plugin_option( 'oli_cj_created_hooks', $created );
 		}
 	}
 
