@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-10-27
+
+### Security
+- PHP events require the dedicated `oli_cj_manage_php_events` capability (granted to administrators by default; filter `oli_cj_php_events_capability`)
+- PHP events can be disabled with `OLI_CJ_DISABLE_PHP_EVENTS` (alias `OLI_CJ_DISALLOW_PHP_EVENTS`) or the `oli_cj_php_events_disabled` filter; the form is hidden and already-scheduled events will not execute
+- On a multisite network only a super administrator may manage PHP events
+
+### Added
+- FAQ note that leftover standard events created before 0.2.6 may remain after uninstall
+- PHPUnit coverage for the PHP-event capability, nonce checks, and the disable switch
+
 ## [0.2.6] - 2026-10-27
 
 ### Fixed
@@ -139,6 +150,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release of Oli Cron Jobs
 
+[0.2.7]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.7
 [0.2.6]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.6
 [0.2.5]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.5
 [0.2.4]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.4

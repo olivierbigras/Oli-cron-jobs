@@ -18,6 +18,20 @@ class Oli_CJ_PHP_Events_Test extends PHPUnit\Framework\TestCase {
 	private $hook;
 
 	/**
+	 * User IDs created during a test.
+	 *
+	 * @var int[]
+	 */
+	private $created_users = array();
+
+	/**
+	 * Previous current user id.
+	 *
+	 * @var int
+	 */
+	private $previous_user_id = 0;
+
+	/**
 	 * Skip when WordPress is not bootstrapped.
 	 */
 	protected function setUp(): void {
@@ -26,7 +40,9 @@ class Oli_CJ_PHP_Events_Test extends PHPUnit\Framework\TestCase {
 		}
 
 		Oli_CJ_Logger::create_table();
-		$this->hook = 'oli_cj_test_php_' . wp_generate_password( 8, false, false );
+		$this->hook             = 'oli_cj_test_php_' . wp_generate_password( 8, false, false );
+		$this->created_users    = array();
+		$this->previous_user_id = get_current_user_id();
 	}
 
 	/**
@@ -38,9 +54,32 @@ class Oli_CJ_PHP_Events_Test extends PHPUnit\Framework\TestCase {
 		}
 
 		remove_filter( 'oli_cj_is_file_editing_disallowed', '__return_true' );
+		remove_filter( 'oli_cj_is_file_editing_disallowed', '__return_false' );
+		remove_all_filters( 'oli_cj_php_events_disabled' );
+		remove_all_filters( 'oli_cj_php_events_capability' );
+		remove_all_filters( 'oli_cj_user_can_manage_php_events' );
+		remove_all_filters( 'wp_die_handler' );
+
 		Oli_CJ_Cron_Manager::delete_all_hook_events( $this->hook );
 		Oli_CJ_PHP_Events::delete_code( $this->hook );
 		delete_option( 'oli_cj_test_php_ran' );
+
+		if ( class_exists( 'Oli_CJ_PHP_Events' ) ) {
+			Oli_CJ_PHP_Events::grant_default_caps();
+		}
+
+		if ( defined( 'ABSPATH' ) && ! function_exists( 'wp_delete_user' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+		}
+		if ( function_exists( 'wp_delete_user' ) ) {
+			foreach ( $this->created_users as $user_id ) {
+				wp_delete_user( $user_id );
+			}
+		}
+
+		wp_set_current_user( $this->previous_user_id );
+		$_GET  = array();
+		$_POST = array();
 	}
 
 	/**
@@ -177,5 +216,215 @@ class Oli_CJ_PHP_Events_Test extends PHPUnit\Framework\TestCase {
 
 		$this->assertFalse( Oli_CJ_PHP_Events::execute( $this->hook ) );
 		$this->assertFalse( Oli_CJ_PHP_Events::last_execute_succeeded() );
+	}
+
+	/**
+	 * Administrators receive the dedicated PHP-event capability by default.
+	 */
+	public function test_php_events_capability_is_granted_to_administrators() {
+		add_filter( 'oli_cj_is_file_editing_disallowed', '__return_false' );
+		Oli_CJ_PHP_Events::grant_default_caps();
+
+		$source = file_get_contents( OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-php-events.php' );
+		$this->assertNotFalse( $source );
+		$this->assertStringContainsString( 'oli_cj_manage_php_events', $source );
+		$this->assertStringContainsString( 'oli_cj_php_events_capability', $source );
+		$this->assertMatchesRegularExpression( '/function can_manage\b[\s\S]*is_multisite[\s\S]*is_super_admin/', $source );
+
+		$role = get_role( 'administrator' );
+		$this->assertNotNull( $role );
+		$this->assertTrue( $role->has_cap( Oli_CJ_PHP_Events::CAPABILITY ) );
+		$this->assertSame( Oli_CJ_PHP_Events::CAPABILITY, Oli_CJ_PHP_Events::capability() );
+
+		add_filter(
+			'oli_cj_php_events_capability',
+			static function () {
+				return 'manage_network';
+			}
+		);
+		$this->assertSame( 'manage_network', Oli_CJ_PHP_Events::capability() );
+		remove_all_filters( 'oli_cj_php_events_capability' );
+
+		$editor_id = $this->create_test_user( 'editor' );
+		wp_set_current_user( $editor_id );
+		$this->assertFalse( current_user_can( 'manage_options' ) );
+		$this->assertFalse( current_user_can( Oli_CJ_PHP_Events::CAPABILITY ) );
+		$this->assertFalse( Oli_CJ_PHP_Events::can_manage() );
+
+		$admin_id = $this->create_test_user( 'administrator' );
+		$admin    = new WP_User( $admin_id );
+		$admin->add_cap( 'edit_files' );
+		wp_set_current_user( $admin_id );
+		$this->assertTrue( current_user_can( 'manage_options' ) );
+		$this->assertTrue( current_user_can( Oli_CJ_PHP_Events::CAPABILITY ) );
+		$this->assertTrue( Oli_CJ_PHP_Events::can_manage() );
+
+		$role->remove_cap( Oli_CJ_PHP_Events::CAPABILITY );
+		wp_set_current_user( 0 );
+		wp_set_current_user( $admin_id );
+		$this->assertFalse( current_user_can( Oli_CJ_PHP_Events::CAPABILITY ) );
+		$this->assertFalse( Oli_CJ_PHP_Events::can_manage() );
+
+		$role->add_cap( Oli_CJ_PHP_Events::CAPABILITY );
+		wp_set_current_user( 0 );
+		wp_set_current_user( $admin_id );
+		$this->assertTrue( Oli_CJ_PHP_Events::can_manage() );
+	}
+
+	/**
+	 * The disable switch hides management and refuses cron execution.
+	 */
+	public function test_php_events_disable_switch_refuses_execution() {
+		Oli_CJ_PHP_Events::save_code( $this->hook, 'update_option( "oli_cj_test_php_ran", 1 );' );
+		Oli_CJ_PHP_Events::register_handler( $this->hook );
+
+		$source = file_get_contents( OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-php-events.php' );
+		$this->assertNotFalse( $source );
+		$this->assertStringContainsString( 'OLI_CJ_DISABLE_PHP_EVENTS', $source );
+		$this->assertStringContainsString( 'OLI_CJ_DISALLOW_PHP_EVENTS', $source );
+		$this->assertStringContainsString( 'oli_cj_php_events_disabled', $source );
+
+		$admin_source = file_get_contents( OLI_CJ_PLUGIN_DIR . 'admin/class-oli-cj-admin.php' );
+		$this->assertNotFalse( $admin_source );
+		$this->assertMatchesRegularExpression( '/function render_php_warning\b[\s\S]*are_disabled/', $admin_source );
+
+		add_filter( 'oli_cj_php_events_disabled', '__return_true' );
+
+		$this->assertTrue( Oli_CJ_PHP_Events::are_disabled() );
+		$this->assertFalse( Oli_CJ_PHP_Events::can_execute() );
+		$this->assertFalse( Oli_CJ_PHP_Events::can_manage() );
+		$this->assertFalse( Oli_CJ_PHP_Events::execute( $this->hook ) );
+		$this->assertFalse( Oli_CJ_PHP_Events::last_execute_succeeded() );
+		$this->assertFalse( get_option( 'oli_cj_test_php_ran' ) );
+
+		do_action( $this->hook );
+		$this->assertFalse( get_option( 'oli_cj_test_php_ran' ), 'Already-scheduled PHP events must not run when disabled.' );
+
+		$this->assertFalse( Oli_CJ_Cron_Manager::run_event_now( $this->hook, array() ) );
+		$this->assertFalse( get_option( 'oli_cj_test_php_ran' ) );
+
+		remove_all_filters( 'oli_cj_php_events_disabled' );
+		$this->assertFalse( Oli_CJ_PHP_Events::are_disabled() );
+		$this->assertTrue( Oli_CJ_PHP_Events::execute( $this->hook ) );
+		$this->assertSame( 1, (int) get_option( 'oli_cj_test_php_ran' ) );
+	}
+
+	/**
+	 * Create, edit, run, and delete PHP-event actions are nonce-checked.
+	 */
+	public function test_php_event_actions_require_a_nonce() {
+		$admin_source = file_get_contents( OLI_CJ_PLUGIN_DIR . 'admin/class-oli-cj-admin.php' );
+		$this->assertNotFalse( $admin_source );
+		$this->assertStringContainsString( "'oli_cj_add_event'", $admin_source );
+		$this->assertStringContainsString( "'oli_cj_edit_event'", $admin_source );
+		$this->assertStringContainsString( "'oli_cj_action'", $admin_source );
+		$this->assertMatchesRegularExpression( '/function process_add_event_form\b[\s\S]*wp_verify_nonce[\s\S]*oli_cj_add_event/', $admin_source );
+		$this->assertMatchesRegularExpression( '/function process_edit_event_form\b[\s\S]*wp_verify_nonce[\s\S]*oli_cj_edit_event/', $admin_source );
+		$this->assertMatchesRegularExpression( '/function handle_actions\b[\s\S]*wp_verify_nonce\([\s\S]*oli_cj_action/', $admin_source );
+		$this->assertStringContainsString( "'run_now'", $admin_source );
+		$this->assertStringContainsString( "'delete_event'", $admin_source );
+
+		if ( ! class_exists( 'Oli_CJ_Admin' ) ) {
+			require_once OLI_CJ_PLUGIN_DIR . 'admin/class-oli-cj-admin.php';
+		}
+
+		add_filter( 'oli_cj_is_file_editing_disallowed', '__return_false' );
+		Oli_CJ_PHP_Events::grant_default_caps();
+
+		$admin_id = $this->create_test_user( 'administrator' );
+		$admin    = new WP_User( $admin_id );
+		$admin->add_cap( 'edit_files' );
+		wp_set_current_user( $admin_id );
+
+		$_POST = array(
+			'oli_cj_add_event' => '1',
+		);
+		$_GET  = array();
+
+		$caught = $this->catch_wp_die(
+			static function () {
+				Oli_CJ_Admin::get_instance()->handle_actions();
+			}
+		);
+		$this->assertInstanceOf( RuntimeException::class, $caught );
+		$this->assertSame( 403, $caught->getCode() );
+
+		$_POST = array();
+		$_GET  = array(
+			'page'   => 'oli-cron-jobs',
+			'action' => 'run_now',
+			'hook'   => $this->hook,
+		);
+
+		$caught_run = $this->catch_wp_die(
+			static function () {
+				Oli_CJ_Admin::get_instance()->handle_actions();
+			}
+		);
+		$this->assertInstanceOf( RuntimeException::class, $caught_run );
+		$this->assertSame( 403, $caught_run->getCode() );
+
+		$_GET['action'] = 'delete_event';
+		$caught_delete  = $this->catch_wp_die(
+			static function () {
+				Oli_CJ_Admin::get_instance()->handle_actions();
+			}
+		);
+		$this->assertInstanceOf( RuntimeException::class, $caught_delete );
+		$this->assertSame( 403, $caught_delete->getCode() );
+	}
+
+	/**
+	 * Insert a user with a role and remember it for teardown.
+	 *
+	 * @param string $role Role name.
+	 * @return int
+	 */
+	private function create_test_user( $role ) {
+		$login = 'oli_cj_' . $role . '_' . wp_generate_password( 6, false, false );
+		$id    = wp_insert_user(
+			array(
+				'user_login' => $login,
+				'user_pass'  => wp_generate_password( 16, true, true ),
+				'user_email' => $login . '@example.com',
+				'role'       => $role,
+			)
+		);
+
+		$this->assertIsInt( $id );
+		$this->created_users[] = $id;
+
+		return $id;
+	}
+
+	/**
+	 * Run a callback with wp_die converted to an exception.
+	 *
+	 * @param callable $callback Callback that may call wp_die().
+	 * @return RuntimeException|null
+	 */
+	private function catch_wp_die( $callback ) {
+		$handler = static function ( $message, $title = '', $args = array() ) {
+			unset( $message, $title );
+			$code = isset( $args['response'] ) ? (int) $args['response'] : 0;
+			throw new RuntimeException( 'oli_cj_wp_die', $code );
+		};
+
+		$filter = static function () use ( $handler ) {
+			return $handler;
+		};
+
+		add_filter( 'wp_die_handler', $filter );
+		$caught = null;
+
+		try {
+			$callback();
+		} catch ( RuntimeException $exception ) {
+			$caught = $exception;
+		}
+
+		remove_filter( 'wp_die_handler', $filter );
+
+		return $caught;
 	}
 }

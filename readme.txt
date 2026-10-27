@@ -5,7 +5,7 @@ Tags: cron, scheduled-tasks, cron-manager, debugging, tasks
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.6
+Stable tag: 0.2.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -27,28 +27,31 @@ Email: oli@olivierbigras.com
 * **Pause and resume** - Temporarily stop a hook from running without deleting it
 * **Custom schedules** - Add and delete custom intervals
 * **URL cron events** - Schedule an HTTP request to a URL you choose
-* **PHP cron events** - Run stored PHP with `eval()` when an event fires. Requires the `edit_files` capability. Execution is refused, including from WP-Cron, when `DISALLOW_FILE_EDIT` or `DISALLOW_FILE_MODS` is set
+* **PHP cron events** - Run stored PHP with `eval()` when an event fires. Requires `manage_options` and the dedicated `oli_cj_manage_php_events` capability (administrators have it by default), plus `edit_files`. On multisite only a super administrator may manage PHP events. Execution is refused, including from WP-Cron, when `OLI_CJ_DISABLE_PHP_EVENTS`, `DISALLOW_FILE_EDIT`, or `DISALLOW_FILE_MODS` is set
 * **WP-Cron status** - See whether built-in cron is disabled, whether alternate cron is on, and run a spawn test
 * **CSV export** - Download the event list as a spreadsheet
 * **Site Health** - Checks for disabled cron, spawn failures, and missed events
 
 = PHP cron events =
 
-PHP events execute stored code with PHP's `eval()` function after an HMAC-SHA256 integrity check. This is powerful and dangerous: the code runs with the same privileges as WordPress itself. Only trusted administrators who have the `edit_files` capability (the same permission as the plugin and theme editors) should create PHP events. A warning is shown on the add and edit screens.
+PHP events execute stored code with PHP's `eval()` function after an HMAC-SHA256 integrity check. This is powerful and dangerous: the code runs with the same privileges as WordPress itself. Only trusted administrators who have `manage_options`, `oli_cj_manage_php_events` (granted to administrators by default), and `edit_files` should create PHP events. On a multisite network only a super administrator may manage them. A warning is shown on the add and edit screens.
 
 Stored PHP is hashed with `wp_salt( 'auth' )`. Tampered code will not run until the event is re-saved. The plugin does not write a temporary file and include it.
 
-Execution is refused even when WP-Cron fires the hook if `DISALLOW_FILE_EDIT` or `DISALLOW_FILE_MODS` is defined. PHP events cannot be added, edited, deleted, or run manually in those cases either.
+Execution is refused even when WP-Cron fires the hook if `OLI_CJ_DISABLE_PHP_EVENTS`, `DISALLOW_FILE_EDIT`, or `DISALLOW_FILE_MODS` is defined. PHP events cannot be added, edited, deleted, or run manually in those cases either. The PHP event form is hidden when the feature is disabled.
 
 To disable PHP events completely, add this to `wp-config.php`:
 
-`define( 'OLI_CJ_DISALLOW_PHP_EVENTS', true );`
+`define( 'OLI_CJ_DISABLE_PHP_EVENTS', true );`
+
+The older `OLI_CJ_DISALLOW_PHP_EVENTS` constant is still honored.
 
 = Security =
 
 * Cron management requires the `manage_options` capability
-* PHP events also require `edit_files` and respect `DISALLOW_FILE_EDIT`
-* Every action uses a nonce
+* PHP events also require the dedicated `oli_cj_manage_php_events` capability (filterable) and `edit_files`
+* On multisite, PHP events are restricted to super administrators
+* Every create, edit, run, and delete action uses a nonce
 * Input is sanitized and output is escaped
 * The plugin does not phone home and does not track users
 
@@ -80,11 +83,15 @@ The event stays scheduled, but its callbacks do not run until you resume the hoo
 
 = Who can manage PHP cron events? =
 
-Users who can manage options and edit files. If `DISALLOW_FILE_EDIT` or `DISALLOW_FILE_MODS` is set, PHP events cannot be created, changed, or executed (including from WP-Cron).
+Users who have `manage_options`, the dedicated `oli_cj_manage_php_events` capability (administrators have it by default), and `edit_files`. On a multisite network only a super administrator may manage PHP events. If `OLI_CJ_DISABLE_PHP_EVENTS`, `DISALLOW_FILE_EDIT`, or `DISALLOW_FILE_MODS` is set, PHP events cannot be created, changed, or executed (including from WP-Cron).
 
 = Why does this plugin use eval()? =
 
-PHP cron events need to run administrator-authored code when the event fires. The plugin uses `eval()` only for that feature, after an HMAC integrity check, and only when file editing is allowed. The risk is the same as pasting that code into the plugin editor: a compromised administrator account, or tampered stored code that still has a valid hash, can run arbitrary PHP. Disable the feature with `OLI_CJ_DISALLOW_PHP_EVENTS` or by setting `DISALLOW_FILE_EDIT`.
+PHP cron events need to run administrator-authored code when the event fires. The plugin uses `eval()` only for that feature, after an HMAC integrity check, and only when file editing is allowed. The risk is the same as pasting that code into the plugin editor: a compromised administrator account, or tampered stored code that still has a valid hash, can run arbitrary PHP. Disable the feature with `OLI_CJ_DISABLE_PHP_EVENTS` or by setting `DISALLOW_FILE_EDIT`.
+
+= What happens to leftover cron events after I uninstall? =
+
+Standard WP-Cron events created by versions before 0.2.6 are not tracked as plugin-owned, so they may remain after uninstall. This is harmless. You can delete those events from the Cron Jobs screen before uninstalling.
 
 = Does this work with DISABLE_WP_CRON? =
 
@@ -117,6 +124,12 @@ This feature is unused until a URL event is created.
 5. WP-Cron status and spawn test
 
 == Changelog ==
+
+= 0.2.7 =
+* PHP events now require the dedicated oli_cj_manage_php_events capability (administrators have it by default; filterable)
+* PHP events can be disabled with OLI_CJ_DISABLE_PHP_EVENTS (or the older OLI_CJ_DISALLOW_PHP_EVENTS alias) or the oli_cj_php_events_disabled filter; the UI is hidden and stored events will not run
+* On multisite, only a super administrator may manage PHP events
+* Documented that leftover pre-0.2.6 standard events may remain after uninstall
 
 = 0.2.6 =
 * Uninstall removes only events created by this plugin (new hooks, PHP events, URL events)
@@ -179,6 +192,9 @@ This feature is unused until a URL event is created.
 * Initial release
 
 == Upgrade Notice ==
+
+= 0.2.7 =
+PHP events now use a dedicated capability and can be disabled with OLI_CJ_DISABLE_PHP_EVENTS. On multisite only super admins may manage them.
 
 = 0.2.6 =
 Uninstall no longer clears core or third-party cron events that were only edited or paused.

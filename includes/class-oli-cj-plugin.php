@@ -78,6 +78,7 @@ class Oli_CJ_Plugin {
 	 * Initialize plugin components
 	 */
 	public function init() {
+		Oli_CJ_PHP_Events::grant_default_caps();
 		Oli_CJ_Cron_Manager::register_event_handlers();
 		Oli_CJ_Cron_Manager::register_paused_hook_guards();
 		Oli_CJ_Logger::get_instance();
@@ -98,11 +99,13 @@ class Oli_CJ_Plugin {
 	 */
 	public static function activate() {
 		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-logger.php';
+		require_once OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-php-events.php';
 
 		if ( false === get_option( 'oli_cj_log_retention_days' ) ) {
 			update_option( 'oli_cj_log_retention_days', 30 );
 		}
 
+		Oli_CJ_PHP_Events::grant_default_caps();
 		self::maybe_upgrade();
 
 		flush_rewrite_rules();
@@ -123,6 +126,10 @@ class Oli_CJ_Plugin {
 
 		self::migrate_legacy_options();
 		self::migrate_managed_hooks();
+
+		if ( class_exists( 'Oli_CJ_PHP_Events' ) ) {
+			Oli_CJ_PHP_Events::grant_default_caps();
+		}
 
 		update_option( 'oli_cj_version', OLI_CJ_VERSION );
 	}

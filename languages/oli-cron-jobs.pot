@@ -2,14 +2,14 @@
 # This file is distributed under the GPL v2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Oli Cron Jobs 0.2.6\n"
+"Project-Id-Version: Oli Cron Jobs 0.2.7\n"
 "Report-Msgid-Bugs-To: https://github.com/olivierbigras/Oli-cron-jobs/issues\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-26T23:54:06+00:00\n"
+"POT-Creation-Date: 2026-10-27T13:30:27+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: oli-cron-jobs\n"
@@ -248,7 +248,7 @@ msgstr ""
 #: admin/class-oli-cj-admin.php:1190
 #: admin/class-oli-cj-list-table.php:463
 #: includes/class-oli-cj-cli.php:68
-#: includes/class-oli-cj-cron-manager.php:1099
+#: includes/class-oli-cj-cron-manager.php:1174
 msgid "Non-repeating"
 msgstr ""
 
@@ -609,16 +609,16 @@ msgid_plural "%d items imported successfully."
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/class-oli-cj-admin.php:1631
+#: admin/class-oli-cj-admin.php:1635
 msgid "PHP cron events"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1632
-msgid "PHP events run stored PHP with eval() when they fire. Managing them requires the edit_files capability, the same permission as the plugin and theme editors. They cannot be added, edited, or executed when DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS is set."
+#: admin/class-oli-cj-admin.php:1636
+msgid "PHP events run stored PHP with eval() when they fire. This is equivalent in risk to the plugin editor: the code runs with the same privileges as WordPress. Managing them requires manage_options and the oli_cj_manage_php_events capability (administrators have it by default), plus edit_files. On a multisite network only a super administrator may manage PHP events."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1633
-msgid "Stored PHP is protected with an integrity hash. If the code is changed outside this screen, the event will not run until it is re-saved. Only create PHP events with code you trust."
+#: admin/class-oli-cj-admin.php:1637
+msgid "Stored PHP is protected with an integrity hash. If the code is changed outside this screen, the event will not run until it is re-saved. They cannot be added, edited, or executed when DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS is set. Disable the feature entirely with OLI_CJ_DISABLE_PHP_EVENTS. Only create PHP events with code you trust."
 msgstr ""
 
 #: admin/class-oli-cj-list-table.php:27
@@ -680,7 +680,7 @@ msgid "Events with no action"
 msgstr ""
 
 #: admin/class-oli-cj-list-table.php:76
-#: includes/class-oli-cj-cron-manager.php:596
+#: includes/class-oli-cj-cron-manager.php:670
 msgid "WordPress Core"
 msgstr ""
 
@@ -862,26 +862,26 @@ msgstr ""
 msgid "Failed to resume hook: %s"
 msgstr ""
 
-#: includes/class-oli-cj-cron-manager.php:582
-#: includes/class-oli-cj-cron-manager.php:663
+#: includes/class-oli-cj-cron-manager.php:656
+#: includes/class-oli-cj-cron-manager.php:737
 msgid "Unknown"
 msgstr ""
 
 #. translators: %s: plugin name or slug
-#: includes/class-oli-cj-cron-manager.php:614
-#: includes/class-oli-cj-cron-manager.php:625
+#: includes/class-oli-cj-cron-manager.php:688
+#: includes/class-oli-cj-cron-manager.php:699
 #, php-format
 msgid "Plugin: %s"
 msgstr ""
 
 #. translators: %s: theme name
-#: includes/class-oli-cj-cron-manager.php:642
+#: includes/class-oli-cj-cron-manager.php:716
 #, php-format
 msgid "Theme: %s"
 msgstr ""
 
 #. translators: %s: mu-plugin file name
-#: includes/class-oli-cj-cron-manager.php:655
+#: includes/class-oli-cj-cron-manager.php:729
 #, php-format
 msgid "MU-Plugin: %s"
 msgstr ""
@@ -938,19 +938,29 @@ msgid_plural "%d Issues"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-oli-cj-php-events.php:134
-msgid "PHP cron events are disabled by the OLI_CJ_DISALLOW_PHP_EVENTS constant."
+#: includes/class-oli-cj-php-events.php:208
+msgid "PHP cron events are disabled by OLI_CJ_DISABLE_PHP_EVENTS or OLI_CJ_DISALLOW_PHP_EVENTS."
 msgstr ""
 
-#: includes/class-oli-cj-php-events.php:138
+#: includes/class-oli-cj-php-events.php:212
 msgid "PHP cron events cannot be managed because DISALLOW_FILE_MODS is enabled."
 msgstr ""
 
-#: includes/class-oli-cj-php-events.php:142
+#: includes/class-oli-cj-php-events.php:216
 msgid "PHP cron events cannot be managed because DISALLOW_FILE_EDIT is enabled."
 msgstr ""
 
-#: includes/class-oli-cj-php-events.php:146
+#: includes/class-oli-cj-php-events.php:220
+msgid "PHP cron events can only be managed by a super administrator on a multisite network."
+msgstr ""
+
+#. translators: %s: capability name
+#: includes/class-oli-cj-php-events.php:226
+#, php-format
+msgid "PHP cron events require the %s capability."
+msgstr ""
+
+#: includes/class-oli-cj-php-events.php:232
 msgid "PHP cron events require the edit_files capability (the same permission used by the plugin and theme editors)."
 msgstr ""
 

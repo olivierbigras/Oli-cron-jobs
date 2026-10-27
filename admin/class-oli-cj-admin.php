@@ -1626,11 +1626,15 @@ class Oli_CJ_Admin {
 	 * Warning shown on add/edit screens for PHP cron events.
 	 */
 	private function render_php_warning() {
+		if ( Oli_CJ_PHP_Events::are_disabled() ) {
+			return;
+		}
+
 		?>
 		<div class="oli-cj-php-warning">
 			<h3><?php echo esc_html__( 'PHP cron events', 'oli-cron-jobs' ); ?></h3>
-			<p><?php echo esc_html__( 'PHP events run stored PHP with eval() when they fire. Managing them requires the edit_files capability, the same permission as the plugin and theme editors. They cannot be added, edited, or executed when DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS is set.', 'oli-cron-jobs' ); ?></p>
-			<p><?php echo esc_html__( 'Stored PHP is protected with an integrity hash. If the code is changed outside this screen, the event will not run until it is re-saved. Only create PHP events with code you trust.', 'oli-cron-jobs' ); ?></p>
+			<p><?php echo esc_html__( 'PHP events run stored PHP with eval() when they fire. This is equivalent in risk to the plugin editor: the code runs with the same privileges as WordPress. Managing them requires manage_options and the oli_cj_manage_php_events capability (administrators have it by default), plus edit_files. On a multisite network only a super administrator may manage PHP events.', 'oli-cron-jobs' ); ?></p>
+			<p><?php echo esc_html__( 'Stored PHP is protected with an integrity hash. If the code is changed outside this screen, the event will not run until it is re-saved. They cannot be added, edited, or executed when DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS is set. Disable the feature entirely with OLI_CJ_DISABLE_PHP_EVENTS. Only create PHP events with code you trust.', 'oli-cron-jobs' ); ?></p>
 		</div>
 		<?php
 	}

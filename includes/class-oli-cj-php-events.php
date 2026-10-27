@@ -22,12 +22,68 @@ class Oli_CJ_PHP_Events {
 	const OPTION_KEY = 'oli_cj_php_events';
 
 	/**
+	 * Dedicated capability for creating, editing, deleting, or running PHP events.
+	 *
+	 * Granted to the administrator role by default. Filterable via
+	 * oli_cj_php_events_capability.
+	 *
+	 * @var string
+	 */
+	const CAPABILITY = 'oli_cj_manage_php_events';
+
+	/**
+	 * Capability required to manage PHP cron events.
+	 *
+	 * @return string
+	 */
+	public static function capability() {
+		/**
+		 * Filter the capability required to manage PHP cron events.
+		 *
+		 * @param string $capability Default oli_cj_manage_php_events.
+		 */
+		$capability = apply_filters( 'oli_cj_php_events_capability', self::CAPABILITY );
+
+		return is_string( $capability ) && '' !== $capability ? $capability : self::CAPABILITY;
+	}
+
+	/**
+	 * Grant the dedicated PHP-event capability to administrators.
+	 */
+	public static function grant_default_caps() {
+		$role = get_role( 'administrator' );
+		if ( $role && ! $role->has_cap( self::CAPABILITY ) ) {
+			$role->add_cap( self::CAPABILITY );
+		}
+	}
+
+	/**
 	 * Whether PHP cron events are fully disabled.
+	 *
+	 * Honors OLI_CJ_DISABLE_PHP_EVENTS, the older OLI_CJ_DISALLOW_PHP_EVENTS
+	 * alias, and the oli_cj_php_events_disabled filter.
 	 *
 	 * @return bool
 	 */
 	public static function are_disabled() {
-		return defined( 'OLI_CJ_DISALLOW_PHP_EVENTS' ) && OLI_CJ_DISALLOW_PHP_EVENTS;
+		$disabled = false;
+
+		if ( defined( 'OLI_CJ_DISABLE_PHP_EVENTS' ) && OLI_CJ_DISABLE_PHP_EVENTS ) {
+			$disabled = true;
+		}
+
+		if ( defined( 'OLI_CJ_DISALLOW_PHP_EVENTS' ) && OLI_CJ_DISALLOW_PHP_EVENTS ) {
+			$disabled = true;
+		}
+
+		/**
+		 * Filter whether PHP cron events are disabled entirely.
+		 *
+		 * When true, the PHP event UI is hidden and stored events will not run.
+		 *
+		 * @param bool $disabled Whether PHP events are disabled.
+		 */
+		return (bool) apply_filters( 'oli_cj_php_events_disabled', $disabled );
 	}
 
 	/**
@@ -64,26 +120,44 @@ class Oli_CJ_PHP_Events {
 	/**
 	 * Whether the current user may add, edit, delete, or run PHP events.
 	 *
+	 * Requires manage_options and the dedicated oli_cj_manage_php_events
+	 * capability (granted to administrators by default). On multisite only a
+	 * super admin may manage PHP events. File-editing constants and the
+	 * plugin disable switch still hide the UI.
+	 *
 	 * @return bool
 	 */
 	public static function can_manage() {
-		if ( self::constants_block_execution() || self::is_file_editing_disallowed() ) {
-			return false;
+		$allowed = false;
+
+		if ( ! self::are_disabled() && ! self::is_file_editing_disallowed() ) {
+			$allowed = current_user_can( 'manage_options' )
+				&& current_user_can( self::capability() )
+				&& current_user_can( 'edit_files' );
+
+			if ( is_multisite() && ! is_super_admin() ) {
+				$allowed = false;
+			}
 		}
 
-		return current_user_can( 'manage_options' ) && current_user_can( 'edit_files' );
+		/**
+		 * Filter whether the current user may manage PHP cron events.
+		 *
+		 * @param bool $allowed Whether the user may manage PHP events.
+		 */
+		return (bool) apply_filters( 'oli_cj_user_can_manage_php_events', $allowed );
 	}
 
 	/**
-	 * Whether DISALLOW_* or the plugin constant forbids PHP execution.
+	 * Whether DISALLOW_* or the plugin disable switch forbids PHP execution.
 	 *
-	 * This reads the constants directly. It is the cron-safe gate and is
-	 * checked again inside execute() so can_execute() is never the only check.
+	 * This is the cron-safe gate and is checked again inside execute() so
+	 * can_execute() is never the only check.
 	 *
 	 * @return bool
 	 */
 	public static function constants_block_execution() {
-		if ( defined( 'OLI_CJ_DISALLOW_PHP_EVENTS' ) && OLI_CJ_DISALLOW_PHP_EVENTS ) {
+		if ( self::are_disabled() ) {
 			return true;
 		}
 
@@ -131,7 +205,7 @@ class Oli_CJ_PHP_Events {
 	 */
 	public static function management_block_reason() {
 		if ( self::are_disabled() ) {
-			return __( 'PHP cron events are disabled by the OLI_CJ_DISALLOW_PHP_EVENTS constant.', 'oli-cron-jobs' );
+			return __( 'PHP cron events are disabled by OLI_CJ_DISABLE_PHP_EVENTS or OLI_CJ_DISALLOW_PHP_EVENTS.', 'oli-cron-jobs' );
 		}
 
 		if ( defined( 'DISALLOW_FILE_MODS' ) && DISALLOW_FILE_MODS ) {
@@ -140,6 +214,18 @@ class Oli_CJ_PHP_Events {
 
 		if ( defined( 'DISALLOW_FILE_EDIT' ) && DISALLOW_FILE_EDIT ) {
 			return __( 'PHP cron events cannot be managed because DISALLOW_FILE_EDIT is enabled.', 'oli-cron-jobs' );
+		}
+
+		if ( is_multisite() && ! is_super_admin() ) {
+			return __( 'PHP cron events can only be managed by a super administrator on a multisite network.', 'oli-cron-jobs' );
+		}
+
+		if ( ! current_user_can( self::capability() ) ) {
+			return sprintf(
+				/* translators: %s: capability name */
+				__( 'PHP cron events require the %s capability.', 'oli-cron-jobs' ),
+				self::capability()
+			);
 		}
 
 		if ( ! current_user_can( 'edit_files' ) ) {
@@ -424,7 +510,7 @@ class Oli_CJ_PHP_Events {
 
 		$code = self::strip_opening_tag( $code );
 
-		// phpcs:ignore Squiz.PHP.Eval.Discouraged, Generic.PHP.ForbiddenFunctions.Found, PluginCheck.CodeAnalysis.DiscouragedPHPFunctions.evalFound -- HMAC-checked PHP cron event; gated by edit_files and DISALLOW_FILE_EDIT / DISALLOW_FILE_MODS.
+		// phpcs:ignore Squiz.PHP.Eval.Discouraged -- HMAC-checked PHP cron event; gated by oli_cj_manage_php_events, manage_options, edit_files, super admin on multisite, and OLI_CJ_DISABLE_PHP_EVENTS / DISALLOW_FILE_EDIT / DISALLOW_FILE_MODS.
 		eval( $code );
 	}
 }
