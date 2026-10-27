@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.9] - 2026-10-27
+
+### Fixed
+- JSON import runs on `admin_init` instead of during the Cron Settings render: missing or invalid `oli_cj_import` nonce and missing `manage_options` end with HTTP 403 and no change; a valid import redirects (302) without "Cannot modify header information" warnings
+- PHP-event rules for import are unchanged (PHP rows and PHP hook pause state need the PHP capability)
+
 ## [0.2.8] - 2026-10-27
 
 ### Security
@@ -166,6 +172,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release of Oli Cron Jobs
 
+[0.2.9]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.9
 [0.2.8]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.8
 [0.2.7]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.7
 [0.2.6]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.6

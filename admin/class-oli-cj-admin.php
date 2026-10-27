@@ -239,6 +239,12 @@ class Oli_CJ_Admin {
 	 * Handle admin actions
 	 */
 	public function handle_actions() {
+		// Import runs on admin_init so it can answer 403 and redirect before output.
+		if ( isset( $_POST['oli_cj_import'] ) ) {
+			$this->handle_import();
+			return;
+		}
+
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
@@ -862,7 +868,11 @@ class Oli_CJ_Admin {
 	 */
 	private function handle_import() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to import cron data.', 'oli-cron-jobs' ) );
+			wp_die(
+				esc_html__( 'You do not have permission to import cron data.', 'oli-cron-jobs' ),
+				esc_html__( 'Forbidden', 'oli-cron-jobs' ),
+				array( 'response' => 403 )
+			);
 		}
 
 		if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), 'oli_cj_import' ) ) {
@@ -889,6 +899,30 @@ class Oli_CJ_Admin {
 			exit;
 		}
 
+		$imported_count = self::import_data( $import_data );
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'oli_cj_message' => 'imported',
+					'oli_cj_count'   => $imported_count,
+				),
+				admin_url( 'tools.php?page=oli-cron-jobs-settings' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Apply decoded import data. The caller checked the nonce and manage_options.
+	 *
+	 * PHP rows, rows on an existing PHP hook, and pause changes for PHP hooks
+	 * are skipped unless the current user may manage PHP events.
+	 *
+	 * @param array $import_data Decoded JSON export.
+	 * @return int Number of imported events.
+	 */
+	public static function import_data( $import_data ) {
 		$imported_count = 0;
 
 		// Import custom schedules.
@@ -971,16 +1005,7 @@ class Oli_CJ_Admin {
 			}
 		}
 
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'oli_cj_message' => 'imported',
-					'oli_cj_count'   => $imported_count,
-				),
-				admin_url( 'tools.php?page=oli-cron-jobs-settings' )
-			)
-		);
-		exit;
+		return $imported_count;
 	}
 
 	/**
@@ -1530,11 +1555,6 @@ class Oli_CJ_Admin {
 	 */
 	public function render_settings_page() {
 		$this->render_page_header( __( 'Cron Settings', 'oli-cron-jobs' ) );
-
-		// Handle import submission.
-		if ( isset( $_POST['oli_cj_import'] ) && check_admin_referer( 'oli_cj_import' ) ) {
-			$this->handle_import();
-		}
 
 		// Handle form submission.
 		if ( isset( $_POST['oli_cj_save_settings'] ) && check_admin_referer( 'oli_cj_settings' ) ) {

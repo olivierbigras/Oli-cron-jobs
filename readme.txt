@@ -5,7 +5,7 @@ Tags: cron, scheduled-tasks, cron-manager, debugging, tasks
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.8
+Stable tag: 0.2.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -125,6 +125,9 @@ This feature is unused until a URL event is created.
 
 == Changelog ==
 
+= 0.2.9 =
+* Import is processed before the page renders: a missing or invalid nonce, or a user without manage_options, gets HTTP 403; a valid import redirects without PHP "headers already sent" warnings
+
 = 0.2.8 =
 * Security: administrators without oli_cj_manage_php_events can no longer edit, pause, resume, bulk-delete, import over, export, or view PHP events; PHP rows are hidden from them
 * Security: the edit-form nonce is bound to the edited event
@@ -200,6 +203,9 @@ This feature is unused until a URL event is created.
 * Initial release
 
 == Upgrade Notice ==
+
+= 0.2.9 =
+Import now answers 403 on a bad nonce and no longer logs "headers already sent" warnings.
 
 = 0.2.8 =
 Security fix: administrators without the PHP events capability can no longer change, pause, or view PHP events. Recommended for all users.

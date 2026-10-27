@@ -486,4 +486,113 @@ class Oli_CJ_PHP_Event_Access_Test extends PHPUnit\Framework\TestCase {
 
 		$this->assertStringContainsString( 'ACL_SECRET', (string) Oli_CJ_PHP_Events::get_code( $this->php_hook ) );
 	}
+
+	/**
+	 * Import data used by the import tests.
+	 *
+	 * @return array
+	 */
+	private function import_payload() {
+		return array(
+			'events'       => array(
+				array(
+					'hook'      => $this->php_hook,
+					'type'      => 'php',
+					'php_code'  => '/* IMPORTED */',
+					'timestamp' => time() + 7200,
+				),
+				array(
+					'hook'      => $this->php_hook,
+					'type'      => 'standard',
+					'timestamp' => time() + 7200,
+				),
+				array(
+					'hook'      => $this->url_hook . '_std',
+					'type'      => 'standard',
+					'timestamp' => time() + 7200,
+				),
+			),
+			'paused_hooks' => array( $this->php_hook ),
+		);
+	}
+
+	/**
+	 * Import: missing or invalid nonce, or no manage_options, ends with 403 on admin_init.
+	 */
+	public function test_import_invalid_nonce_or_no_cap_is_403() {
+		$this->make_admin( true );
+
+		foreach ( array( null, 'invalid' ) as $nonce ) {
+			$_GET  = array( 'page' => 'oli-cron-jobs-settings' );
+			$_POST = array( 'oli_cj_import' => '1' );
+			if ( null !== $nonce ) {
+				$_POST['_wpnonce'] = $nonce;
+			}
+			$result = $this->run_handler( array( Oli_CJ_Admin::get_instance(), 'handle_actions' ) );
+			$this->assertSame( array( 'die' => 403 ), $result, (string) $nonce );
+		}
+
+		$login     = 'oli_cj_acl_ed_' . wp_generate_password( 6, false, false );
+		$editor_id = wp_insert_user(
+			array(
+				'user_login' => $login,
+				'user_pass'  => wp_generate_password( 16 ),
+				'user_email' => $login . '@example.com',
+				'role'       => 'editor',
+			)
+		);
+		$this->created_users[] = $editor_id;
+		wp_set_current_user( $editor_id );
+		$_POST  = array(
+			'oli_cj_import' => '1',
+			'_wpnonce'      => wp_create_nonce( 'oli_cj_import' ),
+		);
+		$result = $this->run_handler( array( Oli_CJ_Admin::get_instance(), 'handle_actions' ) );
+		$this->assertSame( array( 'die' => 403 ), $result );
+		$this->assertFalse( Oli_CJ_Cron_Manager::is_hook_paused( $this->php_hook ) );
+	}
+
+	/**
+	 * Import: a valid nonce is handled on admin_init and redirects (no upload here, so import_error).
+	 */
+	public function test_import_valid_nonce_redirects() {
+		$this->make_admin( true );
+		$_GET  = array( 'page' => 'oli-cron-jobs-settings' );
+		$_POST = array(
+			'oli_cj_import' => '1',
+			'_wpnonce'      => wp_create_nonce( 'oli_cj_import' ),
+		);
+
+		$result = $this->run_handler( array( Oli_CJ_Admin::get_instance(), 'handle_actions' ) );
+		$this->assertSame( array( 'redirect' => 'import_error' ), $result );
+
+		$source = file_get_contents( OLI_CJ_PLUGIN_DIR . 'admin/class-oli-cj-admin.php' );
+		$this->assertDoesNotMatchRegularExpression( '/function render_settings_page\b[^}]*handle_import/', $source );
+	}
+
+	/**
+	 * Import: PHP rows and PHP pause state are skipped without the capability.
+	 */
+	public function test_import_skips_php_without_cap() {
+		$this->make_admin( false );
+		$count = Oli_CJ_Admin::import_data( $this->import_payload() );
+
+		$this->assertSame( 1, $count );
+		$this->assertStringContainsString( 'ACL_SECRET', (string) Oli_CJ_PHP_Events::get_code( $this->php_hook ) );
+		$this->assertFalse( Oli_CJ_Cron_Manager::is_hook_paused( $this->php_hook ) );
+		$this->assertNotNull( $this->find_event( $this->url_hook . '_std' ) );
+		Oli_CJ_Cron_Manager::delete_all_hook_events( $this->url_hook . '_std' );
+	}
+
+	/**
+	 * Import (control): with the capability, PHP rows and pause state are imported.
+	 */
+	public function test_import_php_with_cap() {
+		$this->make_admin( true );
+		Oli_CJ_Admin::import_data( $this->import_payload() );
+
+		$this->assertStringContainsString( 'IMPORTED', (string) Oli_CJ_PHP_Events::get_code( $this->php_hook ) );
+		$this->assertTrue( Oli_CJ_Cron_Manager::is_hook_paused( $this->php_hook ) );
+		Oli_CJ_Cron_Manager::delete_all_hook_events( $this->url_hook . '_std' );
+	}
 }
