@@ -140,12 +140,24 @@ class Oli_CJ_PHP_Events {
 			}
 		}
 
-		/**
-		 * Filter whether the current user may manage PHP cron events.
-		 *
-		 * @param bool $allowed Whether the user may manage PHP events.
-		 */
-		return (bool) apply_filters( 'oli_cj_user_can_manage_php_events', $allowed );
+		return $allowed;
+	}
+
+	/**
+	 * Whether the PHP event UI (type option, code field, eval() warning) may be shown.
+	 *
+	 * False when the feature is disabled, when DISALLOW_FILE_EDIT or
+	 * DISALLOW_FILE_MODS is set, or when the current user lacks the dedicated
+	 * capability. Execution keeps its own checks in can_execute().
+	 *
+	 * @return bool
+	 */
+	public static function can_use_php_events() {
+		if ( self::are_disabled() || self::constants_block_execution() || self::is_file_editing_disallowed() ) {
+			return false;
+		}
+
+		return self::can_manage();
 	}
 
 	/**

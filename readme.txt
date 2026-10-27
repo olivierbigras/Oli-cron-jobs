@@ -5,7 +5,7 @@ Tags: cron, scheduled-tasks, cron-manager, debugging, tasks
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.7
+Stable tag: 0.2.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -125,6 +125,14 @@ This feature is unused until a URL event is created.
 
 == Changelog ==
 
+= 0.2.8 =
+* Security: administrators without oli_cj_manage_php_events can no longer edit, pause, resume, bulk-delete, import over, export, or view PHP events; PHP rows are hidden from them
+* Security: the edit-form nonce is bound to the edited event
+* Bulk delete is processed before output: an invalid nonce returns HTTP 403
+* The eval() warning is shown only when PHP events can actually be used
+* Uninstall removes the oli_cj_manage_php_events capability from every role
+* Removed the undocumented oli_cj_user_can_manage_php_events filter (use oli_cj_php_events_capability)
+
 = 0.2.7 =
 * PHP events now require the dedicated oli_cj_manage_php_events capability (administrators have it by default; filterable)
 * PHP events can be disabled with OLI_CJ_DISABLE_PHP_EVENTS (or the older OLI_CJ_DISALLOW_PHP_EVENTS alias) or the oli_cj_php_events_disabled filter; the UI is hidden and stored events will not run
@@ -192,6 +200,9 @@ This feature is unused until a URL event is created.
 * Initial release
 
 == Upgrade Notice ==
+
+= 0.2.8 =
+Security fix: administrators without the PHP events capability can no longer change, pause, or view PHP events. Recommended for all users.
 
 = 0.2.7 =
 PHP events now use a dedicated capability and can be disabled with OLI_CJ_DISABLE_PHP_EVENTS. On multisite only super admins may manage them.

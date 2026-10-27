@@ -16,6 +16,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/includes/oli-cj-ownership.php';
 
 /**
+ * Remove the PHP events capability from every role of the current site that has it.
+ */
+function oli_cj_uninstall_remove_capability() {
+	$roles = wp_roles();
+	foreach ( $roles->role_objects as $role ) {
+		if ( $role->has_cap( 'oli_cj_manage_php_events' ) ) {
+			$role->remove_cap( 'oli_cj_manage_php_events' );
+		}
+	}
+}
+
+/**
  * Delete plugin options, logs table, and plugin-created cron events for the current site.
  */
 function oli_cj_uninstall_site() {
@@ -48,6 +60,8 @@ function oli_cj_uninstall_site() {
 	}
 
 	delete_transient( 'oli_cj_spawn_test' );
+
+	oli_cj_uninstall_remove_capability();
 
 	$table_name = $wpdb->prefix . 'oli_cj_logs';
 

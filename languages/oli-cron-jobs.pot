@@ -2,14 +2,14 @@
 # This file is distributed under the GPL v2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Oli Cron Jobs 0.2.7\n"
+"Project-Id-Version: Oli Cron Jobs 0.2.8\n"
 "Report-Msgid-Bugs-To: https://github.com/olivierbigras/Oli-cron-jobs/issues\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-27T13:30:27+00:00\n"
+"POT-Creation-Date: 2026-10-27T14:00:55+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: oli-cron-jobs\n"
@@ -49,575 +49,543 @@ msgstr ""
 
 #: admin/class-oli-cj-admin.php:59
 #: admin/class-oli-cj-admin.php:60
-#: admin/class-oli-cj-admin.php:931
-#: admin/class-oli-cj-admin.php:939
+#: admin/class-oli-cj-admin.php:1092
+#: admin/class-oli-cj-admin.php:1100
 msgid "Add Cron Event"
 msgstr ""
 
 #: admin/class-oli-cj-admin.php:70
 #: admin/class-oli-cj-admin.php:71
 #: admin/class-oli-cj-admin.php:118
-#: admin/class-oli-cj-admin.php:187
-#: admin/class-oli-cj-admin.php:1044
-#: admin/class-oli-cj-admin.php:1082
+#: admin/class-oli-cj-admin.php:198
+#: admin/class-oli-cj-admin.php:1205
+#: admin/class-oli-cj-admin.php:1244
 msgid "Edit Cron Event"
 msgstr ""
 
 #: admin/class-oli-cj-admin.php:81
 #: admin/class-oli-cj-admin.php:82
-#: admin/class-oli-cj-admin.php:1254
-#: admin/class-oli-cj-admin.php:1271
+#: admin/class-oli-cj-admin.php:1348
+#: admin/class-oli-cj-admin.php:1365
 msgid "Cron Schedules"
 msgstr ""
 
 #: admin/class-oli-cj-admin.php:90
 #: admin/class-oli-cj-admin.php:91
-#: admin/class-oli-cj-admin.php:1342
-#: admin/class-oli-cj-admin.php:1350
+#: admin/class-oli-cj-admin.php:1436
+#: admin/class-oli-cj-admin.php:1444
 msgid "Cron Logs"
 msgstr ""
 
 #: admin/class-oli-cj-admin.php:99
 #: admin/class-oli-cj-admin.php:100
-#: admin/class-oli-cj-admin.php:1438
-#: admin/class-oli-cj-admin.php:1455
+#: admin/class-oli-cj-admin.php:1532
+#: admin/class-oli-cj-admin.php:1549
 msgid "Cron Settings"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:221
-msgid "Are you sure you want to delete the selected events?"
+#: admin/class-oli-cj-admin.php:130
+#: admin/class-oli-cj-admin.php:1235
+#: admin/class-oli-cj-admin.php:1675
+msgid "You do not have permission to manage PHP cron events."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:222
-#: admin/class-oli-cj-admin.php:1293
-#: admin/class-oli-cj-list-table.php:378
-msgid "Are you sure?"
-msgstr ""
-
-#: admin/class-oli-cj-admin.php:324
-msgid "Security check failed."
-msgstr ""
-
-#: admin/class-oli-cj-admin.php:325
+#: admin/class-oli-cj-admin.php:131
+#: admin/class-oli-cj-admin.php:421
 msgid "Forbidden"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:719
-msgid "You do not have permission to import cron data."
+#: admin/class-oli-cj-admin.php:232
+msgid "Are you sure you want to delete the selected events?"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:830
-#: admin/class-oli-cj-admin.php:928
-#: admin/class-oli-cj-admin.php:1041
-msgid "You do not have permission to manage cron events."
+#: admin/class-oli-cj-admin.php:233
+#: admin/class-oli-cj-admin.php:1387
+#: admin/class-oli-cj-list-table.php:352
+msgid "Are you sure?"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:836
-#: admin/class-oli-cj-admin.php:840
+#: admin/class-oli-cj-admin.php:368
+#: admin/class-oli-cj-admin.php:997
+#: admin/class-oli-cj-admin.php:1001
 #: admin/class-oli-cj-list-table.php:28
 msgid "Cron Events"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:842
+#: admin/class-oli-cj-admin.php:420
+msgid "Security check failed."
+msgstr ""
+
+#: admin/class-oli-cj-admin.php:865
+msgid "You do not have permission to import cron data."
+msgstr ""
+
+#: admin/class-oli-cj-admin.php:991
+#: admin/class-oli-cj-admin.php:1089
+#: admin/class-oli-cj-admin.php:1202
+msgid "You do not have permission to manage cron events."
+msgstr ""
+
+#: admin/class-oli-cj-admin.php:1003
 msgid "Add New"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:845
+#: admin/class-oli-cj-admin.php:1006
 msgid "Export CSV"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:855
+#: admin/class-oli-cj-admin.php:1016
 msgid "Search Events"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:871
-#: admin/class-oli-cj-admin.php:1478
+#: admin/class-oli-cj-admin.php:1032
+#: admin/class-oli-cj-admin.php:1572
 #: includes/class-oli-cj-site-health.php:52
 msgid "WP-Cron Status"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:875
+#: admin/class-oli-cj-admin.php:1036
 msgid "Built-in WP-Cron"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:878
-#: admin/class-oli-cj-admin.php:1481
+#: admin/class-oli-cj-admin.php:1039
+#: admin/class-oli-cj-admin.php:1575
 msgid "Disabled (DISABLE_WP_CRON)"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:879
+#: admin/class-oli-cj-admin.php:1040
 msgid "WordPress will not spawn cron on page views. Configure a server cron job that requests wp-cron.php."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:881
-#: admin/class-oli-cj-admin.php:1484
+#: admin/class-oli-cj-admin.php:1042
+#: admin/class-oli-cj-admin.php:1578
 msgid "Enabled"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:886
-#: admin/class-oli-cj-admin.php:1489
+#: admin/class-oli-cj-admin.php:1047
+#: admin/class-oli-cj-admin.php:1583
 #: includes/class-oli-cj-site-health.php:301
 msgid "Alternate WP-Cron"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:889
-#: admin/class-oli-cj-admin.php:1492
+#: admin/class-oli-cj-admin.php:1050
+#: admin/class-oli-cj-admin.php:1586
 msgid "Enabled (ALTERNATE_WP_CRON)"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:890
-#: admin/class-oli-cj-admin.php:1493
+#: admin/class-oli-cj-admin.php:1051
+#: admin/class-oli-cj-admin.php:1587
 msgid "WordPress redirects visitors to spawn cron. This can be unreliable on some hosts."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:892
-#: admin/class-oli-cj-admin.php:1495
+#: admin/class-oli-cj-admin.php:1053
+#: admin/class-oli-cj-admin.php:1589
 msgid "Off"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:897
+#: admin/class-oli-cj-admin.php:1058
 msgid "Site timezone"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:901
+#: admin/class-oli-cj-admin.php:1062
 msgid "Spawn test"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:912
+#: admin/class-oli-cj-admin.php:1073
 msgid "Run spawn test"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:914
+#: admin/class-oli-cj-admin.php:1075
 msgid "Sends an HTTP POST request to this site's wp-cron.php to check that WordPress can spawn cron."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:949
-#: admin/class-oli-cj-admin.php:1098
-#: admin/class-oli-cj-admin.php:1201
+#: admin/class-oli-cj-admin.php:1110
+#: admin/class-oli-cj-admin.php:1260
 msgid "Event Type"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:952
-#: admin/class-oli-cj-admin.php:1101
+#: admin/class-oli-cj-admin.php:1113
+#: admin/class-oli-cj-admin.php:1263
 msgid "Standard Event"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:953
-#: admin/class-oli-cj-admin.php:1102
+#: admin/class-oli-cj-admin.php:1114
+#: admin/class-oli-cj-admin.php:1264
 msgid "URL Event"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:955
-#: admin/class-oli-cj-admin.php:1104
+#: admin/class-oli-cj-admin.php:1116
+#: admin/class-oli-cj-admin.php:1266
 msgid "PHP Event"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:964
-#: admin/class-oli-cj-admin.php:1110
-#: admin/class-oli-cj-admin.php:1205
+#: admin/class-oli-cj-admin.php:1125
+#: admin/class-oli-cj-admin.php:1272
 msgid "Hook Name"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:967
+#: admin/class-oli-cj-admin.php:1128
 msgid "The name of the action hook to execute. Leave empty for a PHP event to generate one."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:971
-#: admin/class-oli-cj-admin.php:1117
-#: admin/class-oli-cj-admin.php:1209
-#: admin/class-oli-cj-list-table.php:98
+#: admin/class-oli-cj-admin.php:1132
+#: admin/class-oli-cj-admin.php:1279
+#: admin/class-oli-cj-list-table.php:100
 msgid "Next Run"
 msgstr ""
 
 #. translators: %s: site timezone
-#: admin/class-oli-cj-admin.php:979
-#: admin/class-oli-cj-admin.php:1125
+#: admin/class-oli-cj-admin.php:1140
+#: admin/class-oli-cj-admin.php:1287
 #, php-format
 msgid "When the event should first run, in the site timezone (%s)."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:988
-#: admin/class-oli-cj-admin.php:1134
-#: admin/class-oli-cj-admin.php:1225
-#: admin/class-oli-cj-list-table.php:99
+#: admin/class-oli-cj-admin.php:1149
+#: admin/class-oli-cj-admin.php:1296
+#: admin/class-oli-cj-list-table.php:101
 msgid "Recurrence"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:991
-#: admin/class-oli-cj-admin.php:1137
-#: admin/class-oli-cj-admin.php:1190
-#: admin/class-oli-cj-list-table.php:463
+#: admin/class-oli-cj-admin.php:1152
+#: admin/class-oli-cj-admin.php:1299
+#: admin/class-oli-cj-list-table.php:437
 #: includes/class-oli-cj-cli.php:68
 #: includes/class-oli-cj-cron-manager.php:1174
 msgid "Non-repeating"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1001
-#: admin/class-oli-cj-admin.php:1147
-#: admin/class-oli-cj-admin.php:1229
-#: admin/class-oli-cj-list-table.php:97
+#: admin/class-oli-cj-admin.php:1162
+#: admin/class-oli-cj-admin.php:1309
+#: admin/class-oli-cj-list-table.php:99
 msgid "Arguments"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1004
-#: admin/class-oli-cj-admin.php:1150
+#: admin/class-oli-cj-admin.php:1165
+#: admin/class-oli-cj-admin.php:1312
 msgid "JSON array of arguments to pass to the hook. Example: [\"arg1\", \"arg2\"]"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1008
-#: admin/class-oli-cj-admin.php:1154
+#: admin/class-oli-cj-admin.php:1169
+#: admin/class-oli-cj-admin.php:1316
 #: includes/class-oli-cj-logger.php:269
 msgid "URL"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1011
-#: admin/class-oli-cj-admin.php:1157
+#: admin/class-oli-cj-admin.php:1172
+#: admin/class-oli-cj-admin.php:1319
 msgid "The URL to request when this cron event runs."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1016
-#: admin/class-oli-cj-admin.php:1162
+#: admin/class-oli-cj-admin.php:1177
+#: admin/class-oli-cj-admin.php:1324
 msgid "PHP Code"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1019
+#: admin/class-oli-cj-admin.php:1180
 msgid "PHP to run when this event fires. Do not include the opening <?php tag. This has the same access as the plugin editor."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1026
+#: admin/class-oli-cj-admin.php:1187
 msgid "Add Event"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1028
-#: admin/class-oli-cj-admin.php:1174
+#: admin/class-oli-cj-admin.php:1189
+#: admin/class-oli-cj-admin.php:1336
 msgid "Cancel"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1053
+#: admin/class-oli-cj-admin.php:1214
 msgid "Invalid event parameters."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1059
-#: admin/class-oli-cj-admin.php:1579
+#: admin/class-oli-cj-admin.php:1220
+#: admin/class-oli-cj-admin.php:1673
 msgid "Event not found."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1087
+#: admin/class-oli-cj-admin.php:1249
 msgid "This PHP event needs checking. Re-save it to refresh the integrity hash before it can run."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1113
+#: admin/class-oli-cj-admin.php:1275
 msgid "The name of the action hook to execute."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1165
+#: admin/class-oli-cj-admin.php:1327
 msgid "PHP to run when this event fires. Do not include the opening <?php tag."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1172
+#: admin/class-oli-cj-admin.php:1334
 msgid "Update Event"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1193
-msgid "PHP Cron Event"
-msgstr ""
-
-#: admin/class-oli-cj-admin.php:1196
-msgid "You do not have permission to edit this PHP cron event."
-msgstr ""
-
-#: admin/class-oli-cj-admin.php:1202
-msgid "PHP Event (unsupported)"
-msgstr ""
-
-#. translators: %s: UTC datetime
-#: admin/class-oli-cj-admin.php:1217
-#, php-format
-msgid "%s UTC"
-msgstr ""
-
-#: admin/class-oli-cj-admin.php:1233
-msgid "Stored PHP Code"
-msgstr ""
-
-#: admin/class-oli-cj-admin.php:1236
-msgid "This code is read-only because PHP event editing is not currently permitted."
-msgstr ""
-
-#: admin/class-oli-cj-admin.php:1243
-msgid "Back to Events"
-msgstr ""
-
-#: admin/class-oli-cj-admin.php:1264
+#: admin/class-oli-cj-admin.php:1358
 msgid "Schedule added successfully."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1275
+#: admin/class-oli-cj-admin.php:1369
 msgid "Existing Schedules"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1279
+#: admin/class-oli-cj-admin.php:1373
 msgid "Name"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1280
-#: admin/class-oli-cj-admin.php:1317
+#: admin/class-oli-cj-admin.php:1374
+#: admin/class-oli-cj-admin.php:1411
 msgid "Display Name"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1281
+#: admin/class-oli-cj-admin.php:1375
 msgid "Interval"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1282
+#: admin/class-oli-cj-admin.php:1376
 msgid "Actions"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1294
-#: admin/class-oli-cj-list-table.php:124
-#: admin/class-oli-cj-list-table.php:379
+#: admin/class-oli-cj-admin.php:1388
+#: admin/class-oli-cj-list-table.php:126
+#: admin/class-oli-cj-list-table.php:353
 msgid "Delete"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1297
+#: admin/class-oli-cj-admin.php:1391
 msgid "Built-in"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1305
+#: admin/class-oli-cj-admin.php:1399
 msgid "Add New Schedule"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1310
+#: admin/class-oli-cj-admin.php:1404
 msgid "Internal Name"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1313
+#: admin/class-oli-cj-admin.php:1407
 msgid "Lowercase letters, numbers, and underscores only."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1323
+#: admin/class-oli-cj-admin.php:1417
 msgid "Interval (seconds)"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1326
+#: admin/class-oli-cj-admin.php:1420
 msgid "Number of seconds between executions."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1331
+#: admin/class-oli-cj-admin.php:1425
 msgid "Add Schedule"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1352
+#: admin/class-oli-cj-admin.php:1446
 msgid "Are you sure you want to clear all logs?"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1353
-#: admin/class-oli-cj-admin.php:1356
+#: admin/class-oli-cj-admin.php:1447
+#: admin/class-oli-cj-admin.php:1450
 msgid "Clear All Logs"
 msgstr ""
 
 #. translators: 1: number of log entries shown, 2: total log entries
-#: admin/class-oli-cj-admin.php:1367
+#: admin/class-oli-cj-admin.php:1461
 #, php-format
 msgid "Showing %1$d of %2$d log entries"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1378
+#: admin/class-oli-cj-admin.php:1472
 msgid "Date/Time"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1379
-#: admin/class-oli-cj-list-table.php:96
+#: admin/class-oli-cj-admin.php:1473
+#: admin/class-oli-cj-list-table.php:98
 msgid "Hook"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1380
+#: admin/class-oli-cj-admin.php:1474
 msgid "Type"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1381
+#: admin/class-oli-cj-admin.php:1475
 msgid "Duration"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1382
-#: admin/class-oli-cj-list-table.php:101
+#: admin/class-oli-cj-admin.php:1476
+#: admin/class-oli-cj-list-table.php:103
 msgid "Status"
 msgstr ""
 
 #. translators: %d: log retention days
-#: admin/class-oli-cj-admin.php:1393
+#: admin/class-oli-cj-admin.php:1487
 #, php-format
 msgid "No executions have been recorded yet. Entries appear here after cron runs. Logs are kept for %d days (change this under Settings)."
 msgstr ""
 
 #. translators: %s: duration in seconds
-#: admin/class-oli-cj-admin.php:1411
+#: admin/class-oli-cj-admin.php:1505
 #, php-format
 msgid "%ss"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1421
+#: admin/class-oli-cj-admin.php:1515
 msgid "Success"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1449
+#: admin/class-oli-cj-admin.php:1543
 msgid "Settings saved successfully."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1463
+#: admin/class-oli-cj-admin.php:1557
 #: includes/class-oli-cj-site-health.php:305
 msgid "Log Retention (days)"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1466
+#: admin/class-oli-cj-admin.php:1560
 msgid "Number of days to keep log entries before automatic cleanup."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1471
+#: admin/class-oli-cj-admin.php:1565
 msgid "Save Settings"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1475
+#: admin/class-oli-cj-admin.php:1569
 msgid "System Information"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1482
+#: admin/class-oli-cj-admin.php:1576
 msgid "WP-Cron is disabled. Make sure you have a server cron job configured."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1500
+#: admin/class-oli-cj-admin.php:1594
 msgid "Total Events"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1504
+#: admin/class-oli-cj-admin.php:1598
 msgid "Total Logs"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1509
+#: admin/class-oli-cj-admin.php:1603
 msgid "Export / Import"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1511
+#: admin/class-oli-cj-admin.php:1605
 msgid "Export Events and Schedules"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1512
+#: admin/class-oli-cj-admin.php:1606
 msgid "Export custom cron events, custom schedules, and paused hooks as a JSON file."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1515
+#: admin/class-oli-cj-admin.php:1609
 msgid "Export Data"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1519
+#: admin/class-oli-cj-admin.php:1613
 msgid "Import Events and Schedules"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1520
+#: admin/class-oli-cj-admin.php:1614
 msgid "Import events and schedules from a previously exported JSON file. This will not delete existing events."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1524
+#: admin/class-oli-cj-admin.php:1618
 msgid "JSON file to import"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1528
+#: admin/class-oli-cj-admin.php:1622
 msgid "Import Data"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1574
+#: admin/class-oli-cj-admin.php:1668
 msgid "Cron event added successfully."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1575
+#: admin/class-oli-cj-admin.php:1669
 msgid "Event deleted successfully."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1576
+#: admin/class-oli-cj-admin.php:1670
 msgid "Event updated successfully."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1577
+#: admin/class-oli-cj-admin.php:1671
 msgid "Event executed successfully."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1578
+#: admin/class-oli-cj-admin.php:1672
 msgid "The event did not run successfully."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1580
+#: admin/class-oli-cj-admin.php:1674
 msgid "This PHP cron event could not be executed."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1581
-msgid "You do not have permission to manage PHP cron events."
-msgstr ""
-
-#: admin/class-oli-cj-admin.php:1582
+#: admin/class-oli-cj-admin.php:1676
 msgid "Enter PHP code for this event."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1583
+#: admin/class-oli-cj-admin.php:1677
 msgid "A hook name is required for URL cron events."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1584
+#: admin/class-oli-cj-admin.php:1678
 msgid "Enter a URL for this event."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1585
+#: admin/class-oli-cj-admin.php:1679
 msgid "A hook name is required."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1586
+#: admin/class-oli-cj-admin.php:1680
 msgid "Hook paused successfully."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1587
+#: admin/class-oli-cj-admin.php:1681
 msgid "Hook resumed successfully."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1588
+#: admin/class-oli-cj-admin.php:1682
 msgid "Schedule deleted successfully."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1589
+#: admin/class-oli-cj-admin.php:1683
 msgid "Logs cleared successfully."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1590
+#: admin/class-oli-cj-admin.php:1684
 msgid "Data exported successfully."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1591
+#: admin/class-oli-cj-admin.php:1685
 msgid "Data imported successfully."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1592
+#: admin/class-oli-cj-admin.php:1686
 msgid "The import file could not be read."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1593
+#: admin/class-oli-cj-admin.php:1687
 msgid "Cron spawn test finished. See the WP-Cron status panel for the result."
 msgstr ""
 
 #. translators: %d: number of imported items
-#: admin/class-oli-cj-admin.php:1602
+#: admin/class-oli-cj-admin.php:1696
 #, php-format
 msgid "%d item imported successfully."
 msgid_plural "%d items imported successfully."
 msgstr[0] ""
 msgstr[1] ""
 
-#: admin/class-oli-cj-admin.php:1635
+#: admin/class-oli-cj-admin.php:1729
 msgid "PHP cron events"
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1636
+#: admin/class-oli-cj-admin.php:1730
 msgid "PHP events run stored PHP with eval() when they fire. This is equivalent in risk to the plugin editor: the code runs with the same privileges as WordPress. Managing them requires manage_options and the oli_cj_manage_php_events capability (administrators have it by default), plus edit_files. On a multisite network only a super administrator may manage PHP events."
 msgstr ""
 
-#: admin/class-oli-cj-admin.php:1637
+#: admin/class-oli-cj-admin.php:1731
 msgid "Stored PHP is protected with an integrity hash. If the code is changed outside this screen, the event will not run until it is re-saved. They cannot be added, edited, or executed when DISALLOW_FILE_EDIT or DISALLOW_FILE_MODS is set. Disable the feature entirely with OLI_CJ_DISABLE_PHP_EVENTS. Only create PHP events with code you trust."
 msgstr ""
 
@@ -634,23 +602,23 @@ msgid "All Statuses"
 msgstr ""
 
 #: admin/class-oli-cj-list-table.php:55
-#: admin/class-oli-cj-list-table.php:517
+#: admin/class-oli-cj-list-table.php:491
 #: includes/class-oli-cj-cli.php:69
 msgid "Scheduled"
 msgstr ""
 
 #: admin/class-oli-cj-list-table.php:56
-#: admin/class-oli-cj-list-table.php:518
+#: admin/class-oli-cj-list-table.php:492
 msgid "Late"
 msgstr ""
 
 #: admin/class-oli-cj-list-table.php:57
-#: admin/class-oli-cj-list-table.php:519
+#: admin/class-oli-cj-list-table.php:493
 msgid "Missed"
 msgstr ""
 
 #: admin/class-oli-cj-list-table.php:58
-#: admin/class-oli-cj-list-table.php:520
+#: admin/class-oli-cj-list-table.php:494
 msgid "Paused"
 msgstr ""
 
@@ -675,7 +643,7 @@ msgid "All Types"
 msgstr ""
 
 #: admin/class-oli-cj-list-table.php:75
-#: admin/class-oli-cj-list-table.php:293
+#: admin/class-oli-cj-list-table.php:261
 msgid "Events with no action"
 msgstr ""
 
@@ -685,113 +653,109 @@ msgid "WordPress Core"
 msgstr ""
 
 #: admin/class-oli-cj-list-table.php:77
-#: admin/class-oli-cj-list-table.php:295
+#: admin/class-oli-cj-list-table.php:263
 msgid "Custom events"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:78
+#: admin/class-oli-cj-list-table.php:79
 msgid "PHP Events"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:79
+#: admin/class-oli-cj-list-table.php:81
 msgid "URL Events"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:80
+#: admin/class-oli-cj-list-table.php:82
 msgid "Plugin"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:83
+#: admin/class-oli-cj-list-table.php:85
 msgid "Filter"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:100
+#: admin/class-oli-cj-list-table.php:102
 msgid "Callbacks"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:292
+#: admin/class-oli-cj-list-table.php:260
 msgid "All"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:294
+#: admin/class-oli-cj-list-table.php:262
 msgid "WordPress core"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:296
+#: admin/class-oli-cj-list-table.php:264
 #: includes/class-oli-cj-logger.php:268
 msgid "PHP"
 msgstr ""
 
 #. translators: %s: cron hook name
-#: admin/class-oli-cj-list-table.php:336
+#: admin/class-oli-cj-list-table.php:308
 #, php-format
 msgid "Select %s"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:364
+#: admin/class-oli-cj-list-table.php:336
 msgid "Run Now"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:371
-msgid "View"
-msgstr ""
-
-#: admin/class-oli-cj-list-table.php:371
+#: admin/class-oli-cj-list-table.php:344
 msgid "Edit"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:386
+#: admin/class-oli-cj-list-table.php:360
 msgid "Resume"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:392
+#: admin/class-oli-cj-list-table.php:366
 msgid "Pause"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:408
-#: admin/class-oli-cj-list-table.php:486
+#: admin/class-oli-cj-list-table.php:382
+#: admin/class-oli-cj-list-table.php:460
 msgid "None"
 msgstr ""
 
 #. translators: %s: human-readable time difference
-#: admin/class-oli-cj-list-table.php:428
+#: admin/class-oli-cj-list-table.php:402
 #, php-format
 msgid "%s ago"
 msgstr ""
 
 #. translators: %s: human-readable time difference
-#: admin/class-oli-cj-list-table.php:433
+#: admin/class-oli-cj-list-table.php:407
 #, php-format
 msgid "in %s"
 msgstr ""
 
 #. translators: 1: UTC datetime, 2: relative time
-#: admin/class-oli-cj-list-table.php:446
+#: admin/class-oli-cj-list-table.php:420
 #, php-format
 msgid "UTC: %1$s · %2$s"
 msgstr ""
 
 #. translators: %d: callback priority
-#: admin/class-oli-cj-list-table.php:497
+#: admin/class-oli-cj-list-table.php:471
 #, php-format
 msgid "priority: %d"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:521
+#: admin/class-oli-cj-list-table.php:495
 msgid "Needs checking"
 msgstr ""
 
 #. translators: %s: search query
-#: admin/class-oli-cj-list-table.php:553
+#: admin/class-oli-cj-list-table.php:527
 #, php-format
 msgid "No events match \"%s\"."
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:557
+#: admin/class-oli-cj-list-table.php:531
 msgid "Clear search"
 msgstr ""
 
-#: admin/class-oli-cj-list-table.php:561
+#: admin/class-oli-cj-list-table.php:535
 #: includes/class-oli-cj-cli.php:49
 msgid "No cron events found."
 msgstr ""
@@ -938,29 +902,29 @@ msgid_plural "%d Issues"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/class-oli-cj-php-events.php:208
+#: includes/class-oli-cj-php-events.php:220
 msgid "PHP cron events are disabled by OLI_CJ_DISABLE_PHP_EVENTS or OLI_CJ_DISALLOW_PHP_EVENTS."
 msgstr ""
 
-#: includes/class-oli-cj-php-events.php:212
+#: includes/class-oli-cj-php-events.php:224
 msgid "PHP cron events cannot be managed because DISALLOW_FILE_MODS is enabled."
 msgstr ""
 
-#: includes/class-oli-cj-php-events.php:216
+#: includes/class-oli-cj-php-events.php:228
 msgid "PHP cron events cannot be managed because DISALLOW_FILE_EDIT is enabled."
 msgstr ""
 
-#: includes/class-oli-cj-php-events.php:220
+#: includes/class-oli-cj-php-events.php:232
 msgid "PHP cron events can only be managed by a super administrator on a multisite network."
 msgstr ""
 
 #. translators: %s: capability name
-#: includes/class-oli-cj-php-events.php:226
+#: includes/class-oli-cj-php-events.php:238
 #, php-format
 msgid "PHP cron events require the %s capability."
 msgstr ""
 
-#: includes/class-oli-cj-php-events.php:232
+#: includes/class-oli-cj-php-events.php:244
 msgid "PHP cron events require the edit_files capability (the same permission used by the plugin and theme editors)."
 msgstr ""
 

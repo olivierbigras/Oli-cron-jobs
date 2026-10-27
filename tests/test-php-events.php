@@ -57,7 +57,6 @@ class Oli_CJ_PHP_Events_Test extends PHPUnit\Framework\TestCase {
 		remove_filter( 'oli_cj_is_file_editing_disallowed', '__return_false' );
 		remove_all_filters( 'oli_cj_php_events_disabled' );
 		remove_all_filters( 'oli_cj_php_events_capability' );
-		remove_all_filters( 'oli_cj_user_can_manage_php_events' );
 		remove_all_filters( 'wp_die_handler' );
 
 		Oli_CJ_Cron_Manager::delete_all_hook_events( $this->hook );
@@ -286,7 +285,7 @@ class Oli_CJ_PHP_Events_Test extends PHPUnit\Framework\TestCase {
 
 		$admin_source = file_get_contents( OLI_CJ_PLUGIN_DIR . 'admin/class-oli-cj-admin.php' );
 		$this->assertNotFalse( $admin_source );
-		$this->assertMatchesRegularExpression( '/function render_php_warning\b[\s\S]*are_disabled/', $admin_source );
+		$this->assertMatchesRegularExpression( '/function render_php_warning\b[\s\S]*can_use_php_events/', $admin_source );
 
 		add_filter( 'oli_cj_php_events_disabled', '__return_true' );
 
@@ -316,10 +315,10 @@ class Oli_CJ_PHP_Events_Test extends PHPUnit\Framework\TestCase {
 		$admin_source = file_get_contents( OLI_CJ_PLUGIN_DIR . 'admin/class-oli-cj-admin.php' );
 		$this->assertNotFalse( $admin_source );
 		$this->assertStringContainsString( "'oli_cj_add_event'", $admin_source );
-		$this->assertStringContainsString( "'oli_cj_edit_event'", $admin_source );
+		$this->assertStringContainsString( "'oli_cj_edit_event_'", $admin_source );
 		$this->assertStringContainsString( "'oli_cj_action'", $admin_source );
 		$this->assertMatchesRegularExpression( '/function process_add_event_form\b[\s\S]*wp_verify_nonce[\s\S]*oli_cj_add_event/', $admin_source );
-		$this->assertMatchesRegularExpression( '/function process_edit_event_form\b[\s\S]*wp_verify_nonce[\s\S]*oli_cj_edit_event/', $admin_source );
+		$this->assertMatchesRegularExpression( '/function process_edit_event_form\b[\s\S]*wp_verify_nonce[\s\S]*edit_nonce_action/', $admin_source );
 		$this->assertMatchesRegularExpression( '/function handle_actions\b[\s\S]*wp_verify_nonce\([\s\S]*oli_cj_action/', $admin_source );
 		$this->assertStringContainsString( "'run_now'", $admin_source );
 		$this->assertStringContainsString( "'delete_event'", $admin_source );

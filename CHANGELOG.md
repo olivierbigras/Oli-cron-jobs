@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.8] - 2026-10-27
+
+### Security
+- Editing an event checks whether the old event is a PHP event and requires the PHP capability; editing onto an existing PHP hook is refused too
+- The edit-form nonce is bound to the edited event (hook, timestamp, signature)
+- Pause, resume, bulk delete, JSON/CSV export, and import skip or refuse PHP events for users without the capability
+- PHP event rows, counts, filters, and the edit view (including stored code) are hidden from users without the capability; the edit view answers HTTP 403
+
+### Fixed
+- Bulk delete runs on admin_init: invalid nonce returns HTTP 403, success redirects
+- The eval() warning uses `Oli_CJ_PHP_Events::can_use_php_events()` and is hidden when DISALLOW_FILE_EDIT/DISALLOW_FILE_MODS is set, the feature is disabled, or the user lacks the capability
+- Uninstall removes `oli_cj_manage_php_events` from every role on every site
+
+### Removed
+- Undocumented `oli_cj_user_can_manage_php_events` filter (redundant with `oli_cj_php_events_capability` and able to bypass the DISALLOW_FILE_* checks)
+
 ## [0.2.7] - 2026-10-27
 
 ### Security
@@ -150,6 +166,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release of Oli Cron Jobs
 
+[0.2.8]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.8
 [0.2.7]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.7
 [0.2.6]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.6
 [0.2.5]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.5

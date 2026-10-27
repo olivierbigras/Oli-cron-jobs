@@ -75,7 +75,9 @@ class Oli_CJ_List_Table extends WP_List_Table {
 				<option value="noaction" <?php selected( $type_filter, 'noaction' ); ?>><?php echo esc_html__( 'Events with no action', 'oli-cron-jobs' ); ?></option>
 				<option value="core" <?php selected( $type_filter, 'core' ); ?>><?php echo esc_html__( 'WordPress Core', 'oli-cron-jobs' ); ?></option>
 				<option value="custom" <?php selected( $type_filter, 'custom' ); ?>><?php echo esc_html__( 'Custom events', 'oli-cron-jobs' ); ?></option>
-				<option value="php" <?php selected( $type_filter, 'php' ); ?>><?php echo esc_html__( 'PHP Events', 'oli-cron-jobs' ); ?></option>
+				<?php if ( Oli_CJ_PHP_Events::can_manage() ) : ?>
+					<option value="php" <?php selected( $type_filter, 'php' ); ?>><?php echo esc_html__( 'PHP Events', 'oli-cron-jobs' ); ?></option>
+				<?php endif; ?>
 				<option value="url" <?php selected( $type_filter, 'url' ); ?>><?php echo esc_html__( 'URL Events', 'oli-cron-jobs' ); ?></option>
 				<option value="plugin" <?php selected( $type_filter, 'plugin' ); ?>><?php echo esc_html__( 'Plugin', 'oli-cron-jobs' ); ?></option>
 			</select>
@@ -138,9 +140,8 @@ class Oli_CJ_List_Table extends WP_List_Table {
 
 		$this->_column_headers = array( $columns, $hidden, $sortable );
 
-		$this->process_bulk_action();
-
-		$events = Oli_CJ_Cron_Manager::get_all_events();
+		// Bulk delete runs earlier, on admin_init (Oli_CJ_Admin::process_bulk_delete()).
+		$events = Oli_CJ_Admin::visible_events( Oli_CJ_Cron_Manager::get_all_events() );
 
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only list-table filters via GET.
 
@@ -227,39 +228,6 @@ class Oli_CJ_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * Process bulk actions
-	 */
-	public function process_bulk_action() {
-		if ( 'delete' !== $this->current_action() ) {
-			return;
-		}
-
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return;
-		}
-
-		check_admin_referer( 'bulk-' . $this->_args['plural'] );
-
-		$packed_events = array();
-		if ( isset( $_REQUEST['event'] ) && is_array( $_REQUEST['event'] ) ) {
-			$packed_events = array_map( 'sanitize_text_field', wp_unslash( $_REQUEST['event'] ) );
-		}
-
-		foreach ( $packed_events as $packed ) {
-			$parts = explode( '|', $packed );
-			if ( 3 !== count( $parts ) ) {
-				continue;
-			}
-
-			if ( Oli_CJ_Cron_Manager::is_php_event( $parts[0] ) && ! Oli_CJ_PHP_Events::can_manage() ) {
-				continue;
-			}
-
-			Oli_CJ_Cron_Manager::delete_event( $parts[0], absint( $parts[1] ), $parts[2] );
-		}
-	}
-
-	/**
 	 * Views for the main event-type filters.
 	 *
 	 * @return array
@@ -267,7 +235,7 @@ class Oli_CJ_List_Table extends WP_List_Table {
 	protected function get_views() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only list-table filter.
 		$current = isset( $_REQUEST['type_filter'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['type_filter'] ) ) : '';
-		$events  = Oli_CJ_Cron_Manager::get_all_events();
+		$events  = Oli_CJ_Admin::visible_events( Oli_CJ_Cron_Manager::get_all_events() );
 		$counts  = array(
 			'all'      => 0,
 			'noaction' => 0,
@@ -295,6 +263,10 @@ class Oli_CJ_List_Table extends WP_List_Table {
 			'custom'   => __( 'Custom events', 'oli-cron-jobs' ),
 			'php'      => __( 'PHP', 'oli-cron-jobs' ),
 		);
+
+		if ( ! Oli_CJ_PHP_Events::can_manage() ) {
+			unset( $labels['php'] );
+		}
 
 		$views = array();
 		foreach ( $labels as $slug => $label ) {
@@ -365,11 +337,13 @@ class Oli_CJ_List_Table extends WP_List_Table {
 			);
 		}
 
-		$actions['edit'] = sprintf(
-			'<a href="%s">%s</a>',
-			esc_url( admin_url( 'tools.php?page=oli-cron-jobs-edit&hook=' . rawurlencode( $item['hook'] ) . '&timestamp=' . $item['timestamp'] . '&sig=' . rawurlencode( $item['sig'] ) ) ),
-			( $is_php_event && ! $can_manage_php ) ? __( 'View', 'oli-cron-jobs' ) : __( 'Edit', 'oli-cron-jobs' )
-		);
+		if ( $can_mutate ) {
+			$actions['edit'] = sprintf(
+				'<a href="%s">%s</a>',
+				esc_url( admin_url( 'tools.php?page=oli-cron-jobs-edit&hook=' . rawurlencode( $item['hook'] ) . '&timestamp=' . $item['timestamp'] . '&sig=' . rawurlencode( $item['sig'] ) ) ),
+				__( 'Edit', 'oli-cron-jobs' )
+			);
+		}
 
 		if ( $can_mutate ) {
 			$actions['delete'] = sprintf(
