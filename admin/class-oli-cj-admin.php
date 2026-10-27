@@ -22,6 +22,13 @@ class Oli_CJ_Admin {
 	private static $instance = null;
 
 	/**
+	 * Action values read by handle_actions() after its nonce check.
+	 *
+	 * @var array<string, string>
+	 */
+	private $action_values = array();
+
+	/**
 	 * Get singleton instance
 	 *
 	 * @return Oli_CJ_Admin
@@ -46,13 +53,17 @@ class Oli_CJ_Admin {
 	 * Add admin menu
 	 */
 	public function add_admin_menu() {
-		add_management_page(
+		$list_hook = add_management_page(
 			__( 'Oli Cron Jobs', 'oli-cron-jobs' ),
 			__( 'Cron Jobs', 'oli-cron-jobs' ),
 			'manage_options',
 			'oli-cron-jobs',
 			array( $this, 'render_events_page' )
 		);
+
+		if ( $list_hook ) {
+			add_action( 'load-' . $list_hook, array( $this, 'ensure_list_nonce' ) );
+		}
 
 		add_submenu_page(
 			'tools.php',
@@ -122,10 +133,17 @@ class Oli_CJ_Admin {
 
 		add_filter( 'admin_title', array( $this, 'filter_edit_event_admin_title' ), 10, 2 );
 
-		// Refuse the edit view of a PHP event before any output (HTTP 403).
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only lookup; the screen itself is capability-gated.
-		$hook = isset( $_GET['hook'] ) ? sanitize_text_field( wp_unslash( $_GET['hook'] ) ) : '';
-		if ( '' !== $hook && ! self::may_touch_hook( $hook ) ) {
+		// Refuse an unsigned edit link, or the edit view of a PHP event, before any output (HTTP 403).
+		$event_key = self::verified_edit_link();
+		if ( null === $event_key ) {
+			wp_die(
+				esc_html__( 'This edit link is invalid or has expired. Open the event again from the Cron Jobs list.', 'oli-cron-jobs' ),
+				esc_html__( 'Forbidden', 'oli-cron-jobs' ),
+				array( 'response' => 403 )
+			);
+		}
+
+		if ( ! self::may_touch_hook( $event_key['hook'] ) ) {
 			wp_die(
 				esc_html__( 'You do not have permission to manage PHP cron events.', 'oli-cron-jobs' ),
 				esc_html__( 'Forbidden', 'oli-cron-jobs' ),
@@ -259,17 +277,34 @@ class Oli_CJ_Admin {
 			return;
 		}
 
-		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Page slug is used only to scope our actions.
+		// Verify the nonces first; the page and action slugs are read only afterwards.
+		$action_nonce_ok = isset( $_GET['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'oli_cj_action' );
+		$bulk_nonce_ok   = isset( $_REQUEST['_wpnonce'] ) && wp_verify_nonce( sanitize_text_field( wp_unslash( $_REQUEST['_wpnonce'] ) ), 'bulk-' . sanitize_key( __( 'Cron Events', 'oli-cron-jobs' ) ) );
+
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
 		if ( 0 !== strpos( $page, 'oli-cron-jobs' ) ) {
 			return;
 		}
 
-		$action = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Unknown actions return before nonce use.
+		$action  = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : '';
+		$bulk    = isset( $_REQUEST['action'] ) ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : '';
+		$bulk2   = isset( $_REQUEST['action2'] ) ? sanitize_key( wp_unslash( $_REQUEST['action2'] ) ) : '';
+		$is_bulk = 'delete' === $bulk || ( ( '' === $bulk || '-1' === $bulk ) && 'delete' === $bulk2 );
 
-		if ( 'oli-cron-jobs' === $page && self::is_bulk_delete_request() ) {
-			$this->process_bulk_delete();
+		if ( 'oli-cron-jobs' === $page && $is_bulk ) {
+			if ( ! $bulk_nonce_ok ) {
+				$this->die_forbidden();
+			}
+
+			$packed_events = array();
+			if ( isset( $_REQUEST['event'] ) && is_array( $_REQUEST['event'] ) ) {
+				$packed_events = array_map( 'sanitize_text_field', wp_unslash( $_REQUEST['event'] ) );
+			}
+
+			$this->process_bulk_delete( $packed_events );
 			return;
 		}
+
 		$known = array(
 			'delete_event',
 			'run_now',
@@ -286,8 +321,16 @@ class Oli_CJ_Admin {
 			return;
 		}
 
-		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ), 'oli_cj_action' ) ) {
+		if ( ! $action_nonce_ok ) {
 			$this->die_forbidden();
+		}
+
+		// Values used by the action handlers, read after the nonce check.
+		$this->action_values = array();
+		foreach ( array( 'hook', 'timestamp', 'sig', 'args', 'schedule' ) as $key ) {
+			if ( isset( $_GET[ $key ] ) && is_string( $_GET[ $key ] ) ) {
+				$this->action_values[ $key ] = sanitize_text_field( wp_unslash( $_GET[ $key ] ) );
+			}
 		}
 
 		switch ( $action ) {
@@ -333,7 +376,147 @@ class Oli_CJ_Admin {
 	 * @return string
 	 */
 	public static function edit_nonce_action( $hook, $timestamp, $sig ) {
-		return 'oli_cj_edit_event_' . md5( (string) $hook . '|' . absint( $timestamp ) . '|' . (string) $sig );
+		return self::event_nonce_action( 'oli_cj_edit_event_', $hook, $timestamp, $sig );
+	}
+
+	/**
+	 * Nonce action of the signed "Edit" link for one specific event.
+	 *
+	 * @since 0.2.10
+	 *
+	 * @param string $hook      Hook name.
+	 * @param int    $timestamp Timestamp.
+	 * @param string $sig       Arguments signature.
+	 * @return string
+	 */
+	public static function edit_link_nonce_action( $hook, $timestamp, $sig ) {
+		return self::event_nonce_action( 'oli_cj_view_event_', $hook, $timestamp, $sig );
+	}
+
+	/**
+	 * Signed URL of the edit screen for one event.
+	 *
+	 * @since 0.2.10
+	 *
+	 * @param string $hook      Hook name.
+	 * @param int    $timestamp Timestamp.
+	 * @param string $sig       Arguments signature.
+	 * @return string Unescaped URL.
+	 */
+	public static function edit_link_url( $hook, $timestamp, $sig ) {
+		return add_query_arg(
+			array(
+				'page'      => 'oli-cron-jobs-edit',
+				'hook'      => rawurlencode( (string) $hook ),
+				'timestamp' => absint( $timestamp ),
+				'sig'       => rawurlencode( (string) $sig ),
+				'_wpnonce'  => wp_create_nonce( self::edit_link_nonce_action( $hook, $timestamp, $sig ) ),
+			),
+			admin_url( 'tools.php' )
+		);
+	}
+
+	/**
+	 * Event key of the current edit screen, when the link nonce and capability check pass.
+	 *
+	 * @since 0.2.10
+	 *
+	 * @return array{hook: string, timestamp: int, sig: string}|null
+	 */
+	public static function verified_edit_link() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return null;
+		}
+
+		// The nonce is bound to the event key, so the key is read inside the check.
+		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce(
+			sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ),
+			self::edit_link_nonce_action(
+				isset( $_GET['hook'] ) ? sanitize_text_field( wp_unslash( $_GET['hook'] ) ) : '',
+				isset( $_GET['timestamp'] ) ? absint( wp_unslash( $_GET['timestamp'] ) ) : 0,
+				isset( $_GET['sig'] ) ? sanitize_text_field( wp_unslash( $_GET['sig'] ) ) : ''
+			)
+		) ) {
+			return null;
+		}
+
+		return array(
+			'hook'      => isset( $_GET['hook'] ) ? sanitize_text_field( wp_unslash( $_GET['hook'] ) ) : '',
+			'timestamp' => isset( $_GET['timestamp'] ) ? absint( wp_unslash( $_GET['timestamp'] ) ) : 0,
+			'sig'       => isset( $_GET['sig'] ) ? sanitize_text_field( wp_unslash( $_GET['sig'] ) ) : '',
+		);
+	}
+
+	/**
+	 * Nonce action bound to one event key.
+	 *
+	 * @param string $prefix    Action prefix.
+	 * @param string $hook      Hook name.
+	 * @param int    $timestamp Timestamp.
+	 * @param string $sig       Arguments signature.
+	 * @return string
+	 */
+	private static function event_nonce_action( $prefix, $hook, $timestamp, $sig ) {
+		return $prefix . md5( (string) $hook . '|' . absint( $timestamp ) . '|' . (string) $sig );
+	}
+
+	/**
+	 * Events list filters, search and sort, honored only with the list nonce.
+	 *
+	 * The filter form, the view links and every redirect to the list carry
+	 * oli_cj_list_nonce; ensure_list_nonce() adds it to a bare list URL.
+	 *
+	 * @since 0.2.10
+	 *
+	 * @return array<string, string>
+	 */
+	public static function list_filters() {
+		$filters = array(
+			'status_filter'   => '',
+			'schedule_filter' => '',
+			'type_filter'     => '',
+			's'               => '',
+			'orderby'         => '',
+			'order'           => '',
+		);
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return $filters;
+		}
+
+		if ( ! isset( $_REQUEST['oli_cj_list_nonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_REQUEST['oli_cj_list_nonce'] ) ), 'oli_cj_list' ) ) {
+			return $filters;
+		}
+
+		foreach ( array_keys( $filters ) as $key ) {
+			if ( isset( $_REQUEST[ $key ] ) && is_string( $_REQUEST[ $key ] ) ) {
+				$filters[ $key ] = sanitize_text_field( wp_unslash( $_REQUEST[ $key ] ) );
+			}
+		}
+
+		return $filters;
+	}
+
+	/**
+	 * Give a bare events-list URL (menu link, sort or pagination link) a fresh list nonce.
+	 *
+	 * Runs on load-tools_page_oli-cron-jobs. Without a valid nonce, filter and sort
+	 * arguments are dropped, so they are only applied from this plugin's own links.
+	 *
+	 * @since 0.2.10
+	 */
+	public function ensure_list_nonce() {
+		if ( ! current_user_can( 'manage_options' ) || 'GET' !== strtoupper( isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : 'GET' ) ) {
+			return;
+		}
+
+		if ( isset( $_GET['oli_cj_list_nonce'] ) && wp_verify_nonce( sanitize_key( wp_unslash( $_GET['oli_cj_list_nonce'] ) ), 'oli_cj_list' ) ) {
+			return;
+		}
+
+		$url = remove_query_arg( array( 'status_filter', 'schedule_filter', 'type_filter', 's', 'orderby', 'order', 'paged', 'oli_cj_list_nonce' ) );
+		wp_safe_redirect( add_query_arg( 'oli_cj_list_nonce', wp_create_nonce( 'oli_cj_list' ), $url ) );
+		exit;
 	}
 
 	/**
@@ -347,37 +530,19 @@ class Oli_CJ_Admin {
 	}
 
 	/**
-	 * Whether the current request is the events list bulk delete.
-	 *
-	 * @return bool
-	 */
-	public static function is_bulk_delete_request() {
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Only detects the request; process_bulk_delete() verifies the nonce.
-		$action  = isset( $_REQUEST['action'] ) ? sanitize_key( wp_unslash( $_REQUEST['action'] ) ) : '';
-		$action2 = isset( $_REQUEST['action2'] ) ? sanitize_key( wp_unslash( $_REQUEST['action2'] ) ) : '';
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
-
-		return 'delete' === $action || ( ( '' === $action || '-1' === $action ) && 'delete' === $action2 );
-	}
-
-	/**
 	 * Bulk-delete events on admin_init, before any output.
 	 *
-	 * An invalid nonce ends with HTTP 403. PHP events are skipped for users
-	 * who may not manage them. Success redirects back to the list.
+	 * The caller handle_actions() verified the bulk nonce and read the packed event keys.
+	 * PHP events are skipped for users who may not manage them. Success
+	 * redirects back to the list.
+	 *
+	 * @since 0.2.10 Receives the verified event keys instead of reading the request.
+	 *
+	 * @param string[] $packed_events Sanitized "hook|timestamp|sig" keys.
 	 */
-	public function process_bulk_delete() {
+	private function process_bulk_delete( $packed_events ) {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			$this->die_forbidden();
-		}
-
-		if ( ! isset( $_REQUEST['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_REQUEST['_wpnonce'] ) ), 'bulk-' . sanitize_key( __( 'Cron Events', 'oli-cron-jobs' ) ) ) ) {
-			$this->die_forbidden();
-		}
-
-		$packed_events = array();
-		if ( isset( $_REQUEST['event'] ) && is_array( $_REQUEST['event'] ) ) {
-			$packed_events = array_map( 'sanitize_text_field', wp_unslash( $_REQUEST['event'] ) );
 		}
 
 		$deleted   = 0;
@@ -402,20 +567,14 @@ class Oli_CJ_Admin {
 	}
 
 	/**
-	 * Read a sanitized GET value after handle_actions() verified the nonce.
+	 * Read a sanitized action value stored by handle_actions() after the nonce check.
 	 *
 	 * @param string $key           Query key.
 	 * @param string $default_value Default value.
 	 * @return string
 	 */
 	private function get_action_text( $key, $default_value = '' ) {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce verified in handle_actions().
-		if ( ! isset( $_GET[ $key ] ) ) {
-			return $default_value;
-		}
-
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce verified in handle_actions().
-		return sanitize_text_field( wp_unslash( $_GET[ $key ] ) );
+		return isset( $this->action_values[ $key ] ) ? $this->action_values[ $key ] : $default_value;
 	}
 
 	/**
@@ -430,12 +589,38 @@ class Oli_CJ_Admin {
 	}
 
 	/**
+	 * URL carrying a status message, signed so render_messages() can trust it.
+	 *
+	 * Also adds the events-list nonce so a redirect to the list keeps its filters valid.
+	 *
+	 * @since 0.2.10
+	 *
+	 * @param string               $message Message slug.
+	 * @param string               $url     Base admin URL.
+	 * @param array<string, mixed> $extra   Extra query arguments.
+	 * @return string Unescaped URL.
+	 */
+	private static function message_url( $message, $url, $extra = array() ) {
+		return add_query_arg(
+			array_merge(
+				array(
+					'oli_cj_message'      => $message,
+					'oli_cj_notice_nonce' => wp_create_nonce( 'oli_cj_notice' ),
+					'oli_cj_list_nonce'   => wp_create_nonce( 'oli_cj_list' ),
+				),
+				$extra
+			),
+			$url
+		);
+	}
+
+	/**
 	 * Redirect to the events list with a status message.
 	 *
 	 * @param string $message Message slug.
 	 */
 	private function redirect_events( $message ) {
-		wp_safe_redirect( add_query_arg( 'oli_cj_message', $message, admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+		wp_safe_redirect( self::message_url( $message, admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 		exit;
 	}
 
@@ -445,7 +630,7 @@ class Oli_CJ_Admin {
 	 * @param string $message Message slug.
 	 */
 	private function redirect_add( $message ) {
-		wp_safe_redirect( add_query_arg( 'oli_cj_message', $message, admin_url( 'tools.php?page=oli-cron-jobs-add' ) ) );
+		wp_safe_redirect( self::message_url( $message, admin_url( 'tools.php?page=oli-cron-jobs-add' ) ) );
 		exit;
 	}
 
@@ -457,7 +642,7 @@ class Oli_CJ_Admin {
 			$this->die_forbidden();
 		}
 
-		$parsed     = $this->parse_event_form();
+		$parsed     = $this->parse_event_form( 'oli_cj_add_event' );
 		$event_type = $parsed['event_type'];
 		$hook       = $parsed['hook'];
 		$schedule   = $parsed['schedule'];
@@ -510,16 +695,21 @@ class Oli_CJ_Admin {
 	 * Process the edit-event form on admin_init before any output.
 	 */
 	private function process_edit_event_form() {
-		// phpcs:disable WordPress.Security.NonceVerification.Missing -- The nonce action is bound to these values and verified just below.
+		// oli_cj_edit_event nonce, bound to the edited event key (the key is read inside the check).
+		if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce(
+			sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ),
+			self::edit_nonce_action(
+				isset( $_POST['old_hook'] ) ? sanitize_text_field( wp_unslash( $_POST['old_hook'] ) ) : '',
+				isset( $_POST['old_timestamp'] ) ? absint( wp_unslash( $_POST['old_timestamp'] ) ) : 0,
+				isset( $_POST['old_sig'] ) ? sanitize_text_field( wp_unslash( $_POST['old_sig'] ) ) : ''
+			)
+		) ) {
+			$this->die_forbidden();
+		}
+
 		$old_hook      = isset( $_POST['old_hook'] ) ? sanitize_text_field( wp_unslash( $_POST['old_hook'] ) ) : '';
 		$old_timestamp = isset( $_POST['old_timestamp'] ) ? absint( wp_unslash( $_POST['old_timestamp'] ) ) : 0;
 		$old_sig       = isset( $_POST['old_sig'] ) ? sanitize_text_field( wp_unslash( $_POST['old_sig'] ) ) : '';
-		// phpcs:enable WordPress.Security.NonceVerification.Missing
-
-		// oli_cj_edit_event nonce, bound to the edited event key.
-		if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), self::edit_nonce_action( $old_hook, $old_timestamp, $old_sig ) ) ) {
-			$this->die_forbidden();
-		}
 
 		if ( ! $old_hook || ! $old_timestamp || ! $old_sig ) {
 			$this->redirect_events( 'event_not_found' );
@@ -530,7 +720,7 @@ class Oli_CJ_Admin {
 			$this->redirect_events( 'php_event_forbidden' );
 		}
 
-		$parsed         = $this->parse_event_form();
+		$parsed         = $this->parse_event_form( self::edit_nonce_action( $old_hook, $old_timestamp, $old_sig ) );
 		$new_event_type = $parsed['event_type'];
 		$new_hook       = $parsed['hook'];
 		$new_schedule   = $parsed['schedule'];
@@ -588,17 +778,23 @@ class Oli_CJ_Admin {
 	/**
 	 * Parse shared add/edit event form fields.
 	 *
+	 * @since 0.2.10 Verifies the form nonce itself before reading any field.
+	 *
+	 * @param string $nonce_action Nonce action of the submitted form.
 	 * @return array
 	 */
-	private function parse_event_form() {
-		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Caller verified the form nonce.
+	private function parse_event_form( $nonce_action ) {
+		if ( ! isset( $_POST['_wpnonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ), $nonce_action ) ) {
+			$this->die_forbidden();
+		}
+
 		$event_type    = isset( $_POST['event_type'] ) ? sanitize_key( wp_unslash( $_POST['event_type'] ) ) : 'standard';
 		$hook          = isset( $_POST['hook'] ) ? sanitize_text_field( wp_unslash( $_POST['hook'] ) ) : '';
 		$schedule      = isset( $_POST['schedule'] ) ? sanitize_text_field( wp_unslash( $_POST['schedule'] ) ) : '';
 		$timestamp_raw = isset( $_POST['timestamp'] ) ? sanitize_text_field( wp_unslash( $_POST['timestamp'] ) ) : '';
 		$timestamp     = Oli_CJ_Cron_Manager::parse_site_datetime( $timestamp_raw );
 		$url           = isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '';
-		$php_code      = isset( $_POST['php_code'] ) ? wp_unslash( $_POST['php_code'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- PHP events store user-authored code after capability checks.
+		$php_code      = self::read_posted_php_code();
 
 		if ( ! $timestamp ) {
 			$timestamp = time() + 3600;
@@ -622,7 +818,25 @@ class Oli_CJ_Admin {
 			'url'        => $url,
 			'php_code'   => is_string( $php_code ) ? $php_code : '',
 		);
-		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/**
+	 * Read the posted PHP event code exactly as typed.
+	 *
+	 * PHP code cannot go through a text sanitizer without being altered, so it is
+	 * read with filter_input() (the original request value, without WordPress
+	 * slashes). Only called from parse_event_form() after its nonce check; the
+	 * add/edit handlers store it only for users who pass Oli_CJ_PHP_Events::can_manage(),
+	 * and it is HMAC-signed before storage.
+	 *
+	 * @since 0.2.10
+	 *
+	 * @return string
+	 */
+	private static function read_posted_php_code() {
+		$code = filter_input( INPUT_POST, 'php_code', FILTER_UNSAFE_RAW );
+
+		return is_string( $code ) ? $code : '';
 	}
 
 	/**
@@ -634,12 +848,12 @@ class Oli_CJ_Admin {
 		$sig       = $this->get_action_text( 'sig' );
 
 		if ( Oli_CJ_Cron_Manager::is_php_event( $hook ) && ! Oli_CJ_PHP_Events::can_manage() ) {
-			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'php_event_forbidden', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+			wp_safe_redirect( self::message_url( 'php_event_forbidden', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 			exit;
 		}
 
 		if ( Oli_CJ_Cron_Manager::delete_event( $hook, $timestamp, $sig ) ) {
-			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'event_deleted', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+			wp_safe_redirect( self::message_url( 'event_deleted', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 			exit;
 		}
 	}
@@ -654,18 +868,14 @@ class Oli_CJ_Admin {
 		$args      = is_array( $args ) ? $args : array();
 
 		if ( Oli_CJ_Cron_Manager::is_php_event( $hook ) && ! Oli_CJ_PHP_Events::can_manage() ) {
-			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'php_event_forbidden', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+			wp_safe_redirect( self::message_url( 'php_event_forbidden', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 			exit;
 		}
 
 		$result = Oli_CJ_Cron_Manager::run_event_now( $hook, $args );
 
 		wp_safe_redirect(
-			add_query_arg(
-				'oli_cj_message',
-				$result ? 'event_ran' : 'event_failed',
-				admin_url( 'tools.php?page=oli-cron-jobs' )
-			)
+			self::message_url( $result ? 'event_ran' : 'event_failed', admin_url( 'tools.php?page=oli-cron-jobs' ) )
 		);
 		exit;
 	}
@@ -681,7 +891,7 @@ class Oli_CJ_Admin {
 		}
 
 		if ( Oli_CJ_Cron_Manager::pause_hook( $hook ) ) {
-			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'hook_paused', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+			wp_safe_redirect( self::message_url( 'hook_paused', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 			exit;
 		}
 	}
@@ -697,7 +907,7 @@ class Oli_CJ_Admin {
 		}
 
 		if ( Oli_CJ_Cron_Manager::resume_hook( $hook ) ) {
-			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'hook_resumed', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+			wp_safe_redirect( self::message_url( 'hook_resumed', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 			exit;
 		}
 	}
@@ -709,7 +919,7 @@ class Oli_CJ_Admin {
 		$schedule = $this->get_action_text( 'schedule' );
 
 		if ( Oli_CJ_Schedule_Manager::delete_schedule( $schedule ) ) {
-			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'schedule_deleted', admin_url( 'tools.php?page=oli-cron-jobs-schedules' ) ) );
+			wp_safe_redirect( self::message_url( 'schedule_deleted', admin_url( 'tools.php?page=oli-cron-jobs-schedules' ) ) );
 			exit;
 		}
 	}
@@ -719,7 +929,7 @@ class Oli_CJ_Admin {
 	 */
 	private function handle_clear_logs() {
 		if ( Oli_CJ_Logger::clear_all_logs() ) {
-			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'logs_cleared', admin_url( 'tools.php?page=oli-cron-jobs-logs' ) ) );
+			wp_safe_redirect( self::message_url( 'logs_cleared', admin_url( 'tools.php?page=oli-cron-jobs-logs' ) ) );
 			exit;
 		}
 	}
@@ -770,11 +980,9 @@ class Oli_CJ_Admin {
 			$export_data['events'][] = $event_data;
 		}
 
-		// Output JSON file.
-		header( 'Content-Type: application/json' );
+		// Output JSON file; wp_send_json() sets the JSON content type, encodes and ends the request.
 		header( 'Content-Disposition: attachment; filename="oli-cron-jobs-export-' . gmdate( 'Y-m-d-H-i-s' ) . '.json"' );
-		echo wp_json_encode( $export_data, JSON_PRETTY_PRINT );
-		exit;
+		wp_send_json( $export_data, null, JSON_PRETTY_PRINT );
 	}
 
 	/**
@@ -859,7 +1067,7 @@ class Oli_CJ_Admin {
 	 */
 	private function handle_test_spawn() {
 		set_transient( 'oli_cj_spawn_test', Oli_CJ_Site_Health::run_spawn_test(), 10 * MINUTE_IN_SECONDS );
-		wp_safe_redirect( add_query_arg( 'oli_cj_message', 'spawn_tested', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
+		wp_safe_redirect( self::message_url( 'spawn_tested', admin_url( 'tools.php?page=oli-cron-jobs' ) ) );
 		exit;
 	}
 
@@ -880,13 +1088,13 @@ class Oli_CJ_Admin {
 		}
 
 		if ( ! isset( $_FILES['import_file'] ) || ! isset( $_FILES['import_file']['error'] ) || UPLOAD_ERR_OK !== (int) $_FILES['import_file']['error'] ) {
-			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'import_error', admin_url( 'tools.php?page=oli-cron-jobs-settings' ) ) );
+			wp_safe_redirect( self::message_url( 'import_error', admin_url( 'tools.php?page=oli-cron-jobs-settings' ) ) );
 			exit;
 		}
 
 		$tmp_name = isset( $_FILES['import_file']['tmp_name'] ) ? sanitize_text_field( wp_unslash( $_FILES['import_file']['tmp_name'] ) ) : '';
 		if ( '' === $tmp_name || ! is_uploaded_file( $tmp_name ) ) {
-			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'import_error', admin_url( 'tools.php?page=oli-cron-jobs-settings' ) ) );
+			wp_safe_redirect( self::message_url( 'import_error', admin_url( 'tools.php?page=oli-cron-jobs-settings' ) ) );
 			exit;
 		}
 
@@ -895,20 +1103,14 @@ class Oli_CJ_Admin {
 		$import_data   = json_decode( $file_contents, true );
 
 		if ( json_last_error() !== JSON_ERROR_NONE || ! is_array( $import_data ) ) {
-			wp_safe_redirect( add_query_arg( 'oli_cj_message', 'import_error', admin_url( 'tools.php?page=oli-cron-jobs-settings' ) ) );
+			wp_safe_redirect( self::message_url( 'import_error', admin_url( 'tools.php?page=oli-cron-jobs-settings' ) ) );
 			exit;
 		}
 
 		$imported_count = self::import_data( $import_data );
 
 		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'oli_cj_message' => 'imported',
-					'oli_cj_count'   => $imported_count,
-				),
-				admin_url( 'tools.php?page=oli-cron-jobs-settings' )
-			)
+			self::message_url( 'imported', admin_url( 'tools.php?page=oli-cron-jobs-settings' ), array( 'oli_cj_count' => $imported_count ) )
 		);
 		exit;
 	}
@@ -1037,6 +1239,7 @@ class Oli_CJ_Admin {
 
 			<form method="get" id="oli-cj-events-form">
 				<input type="hidden" name="page" value="oli-cron-jobs" />
+				<?php wp_nonce_field( 'oli_cj_list', 'oli_cj_list_nonce', false ); ?>
 				<?php $list_table->views(); ?>
 				<?php $list_table->search_box( __( 'Search Events', 'oli-cron-jobs' ), 'oli-cj-events' ); ?>
 				<?php $list_table->display(); ?>
@@ -1229,11 +1432,15 @@ class Oli_CJ_Admin {
 
 		$this->render_page_header( __( 'Edit Cron Event', 'oli-cron-jobs' ) );
 
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Edit screen is capability-gated; identifiers come from admin links.
-		$hook      = isset( $_GET['hook'] ) ? sanitize_text_field( wp_unslash( $_GET['hook'] ) ) : '';
-		$timestamp = isset( $_GET['timestamp'] ) ? absint( $_GET['timestamp'] ) : 0;
-		$sig       = isset( $_GET['sig'] ) ? sanitize_text_field( wp_unslash( $_GET['sig'] ) ) : '';
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+		$event_key = self::verified_edit_link();
+		if ( null === $event_key ) {
+			echo '<div class="wrap"><div class="notice notice-error"><p>' . esc_html__( 'This edit link is invalid or has expired. Open the event again from the Cron Jobs list.', 'oli-cron-jobs' ) . '</p></div></div>';
+			return;
+		}
+
+		$hook      = $event_key['hook'];
+		$timestamp = $event_key['timestamp'];
+		$sig       = $event_key['sig'];
 
 		if ( ! $hook || ! $timestamp || ! $sig ) {
 			wp_die( esc_html__( 'Invalid event parameters.', 'oli-cron-jobs' ) );
@@ -1373,9 +1580,9 @@ class Oli_CJ_Admin {
 		$this->render_page_header( __( 'Cron Schedules', 'oli-cron-jobs' ) );
 
 		// Handle form submission.
-		if ( isset( $_POST['oli_cj_add_schedule'] ) && check_admin_referer( 'oli_cj_add_schedule' ) ) {
-			$name     = isset( $_POST['schedule_name'] ) ? sanitize_key( $_POST['schedule_name'] ) : '';
-			$interval = isset( $_POST['schedule_interval'] ) ? absint( $_POST['schedule_interval'] ) : 0;
+		if ( isset( $_POST['oli_cj_add_schedule'] ) && check_admin_referer( 'oli_cj_add_schedule' ) && current_user_can( 'manage_options' ) ) {
+			$name     = isset( $_POST['schedule_name'] ) ? sanitize_key( wp_unslash( $_POST['schedule_name'] ) ) : '';
+			$interval = isset( $_POST['schedule_interval'] ) ? absint( wp_unslash( $_POST['schedule_interval'] ) ) : 0;
 			$display  = isset( $_POST['schedule_display'] ) ? sanitize_text_field( wp_unslash( $_POST['schedule_display'] ) ) : '';
 
 			if ( $name && $interval && $display ) {
@@ -1557,8 +1764,8 @@ class Oli_CJ_Admin {
 		$this->render_page_header( __( 'Cron Settings', 'oli-cron-jobs' ) );
 
 		// Handle form submission.
-		if ( isset( $_POST['oli_cj_save_settings'] ) && check_admin_referer( 'oli_cj_settings' ) ) {
-			$retention_days = isset( $_POST['log_retention_days'] ) ? absint( $_POST['log_retention_days'] ) : 30;
+		if ( isset( $_POST['oli_cj_save_settings'] ) && check_admin_referer( 'oli_cj_settings' ) && current_user_can( 'manage_options' ) ) {
+			$retention_days = isset( $_POST['log_retention_days'] ) ? absint( wp_unslash( $_POST['log_retention_days'] ) ) : 30;
 			update_option( 'oli_cj_log_retention_days', $retention_days );
 			echo '<div class="notice notice-success"><p>' . esc_html__( 'Settings saved successfully.', 'oli-cron-jobs' ) . '</p></div>';
 		}
@@ -1677,12 +1884,10 @@ class Oli_CJ_Admin {
 	 * Render admin messages
 	 */
 	private function render_messages() {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only redirect message.
-		if ( ! isset( $_GET['oli_cj_message'] ) ) {
+		if ( ! isset( $_GET['oli_cj_message'], $_GET['oli_cj_notice_nonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_GET['oli_cj_notice_nonce'] ) ), 'oli_cj_notice' ) ) {
 			return;
 		}
 
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only redirect message.
 		$message  = sanitize_text_field( wp_unslash( $_GET['oli_cj_message'] ) );
 		$messages = array(
 			'event_added'         => __( 'Cron event added successfully.', 'oli-cron-jobs' ),
@@ -1708,7 +1913,6 @@ class Oli_CJ_Admin {
 		);
 
 		if ( 'imported' === $message ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Display-only redirect count.
 			$imported_count = isset( $_GET['oli_cj_count'] ) ? absint( wp_unslash( $_GET['oli_cj_count'] ) ) : 0;
 			if ( $imported_count > 0 ) {
 				$messages['imported'] = sprintf(

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.10] - 2026-10-27
+
+### Sécurité
+- Chaque valeur de requête est lue seulement après une vérification de nonce et de capacité, sans aucun `phpcs:ignore` sur le nonce, l'échappement ou les entrées.
+- Liste des événements : filtres, recherche et tri exigent le nonce `oli_cj_list_nonce` (champ du formulaire, liens de vues, redirections). Une URL de liste sans nonce valide est redirigée une fois vers la même page avec un nonce neuf, sans les filtres.
+- Lien « Modifier » signé pour l'événement (nonce `oli_cj_view_event_*` lié à hook|timestamp|sig) ; sans lien valide, l'écran d'édition répond 403.
+- Messages d'état après redirection signés (`oli_cj_notice_nonce`).
+- Actions et suppression groupée : nonces vérifiés avant de lire la page et l'action ; les valeurs de l'action sont lues après la vérification.
+- Formulaires d'ajout et de modification : le nonce est vérifié dans `parse_event_form()` avant tout champ. Le code des événements PHP est lu via `filter_input()` (tel que saisi, toujours réservé à la capacité PHP et signé HMAC).
+- Écrans Planifications et Réglages : `current_user_can( 'manage_options' )` ajouté au traitement du formulaire.
+
+### Modifié
+- Requêtes du journal : chaînes SQL fixes entièrement préparées avec `%i` (plus de fragments assemblés).
+- Échappement tardif des libellés d'actions de ligne ; export JSON via `wp_send_json()`.
+- Tests PHPUnit : nonces de la liste, lien d'édition lié à l'événement, messages signés, requêtes du journal, absence d'ignores de sécurité.
+
 ## [0.2.9] - 2026-10-27
 
 ### Fixed

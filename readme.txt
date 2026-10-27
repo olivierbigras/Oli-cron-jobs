@@ -5,7 +5,7 @@ Tags: cron, scheduled-tasks, cron-manager, debugging, tasks
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.9
+Stable tag: 0.2.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -125,6 +125,12 @@ This feature is unused until a URL event is created.
 
 == Changelog ==
 
+= 0.2.10 =
+* Security: every request value is read only after a nonce check and a capability check. The events list filters, search and sort now carry their own nonce (a bare list URL gets one through a single redirect), the "Edit" link is signed for its event, and status messages after a redirect are signed.
+* Security: the add/edit forms verify their nonce before reading any field; the PHP event code is read with filter_input() so it is stored exactly as typed (still limited to users allowed to manage PHP events and HMAC-signed).
+* Log queries are fixed, fully prepared SQL strings with the %i identifier placeholder.
+* Late escaping of the row action labels; the JSON export is sent with wp_send_json().
+
 = 0.2.9 =
 * Import is processed before the page renders: a missing or invalid nonce, or a user without manage_options, gets HTTP 403; a valid import redirects without PHP "headers already sent" warnings
 
@@ -203,6 +209,9 @@ This feature is unused until a URL event is created.
 * Initial release
 
 == Upgrade Notice ==
+
+= 0.2.10 =
+Security hardening of admin requests (nonces on list filters, edit links and status messages). No settings or cron events change.
 
 = 0.2.9 =
 Import now answers 403 on a bad nonce and no longer logs "headers already sent" warnings.
