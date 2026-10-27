@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] - 2026-10-27
+
+### Fixed
+- Uninstall unschedules only events this plugin created (new hooks, PHP events, and URL events)
+- Existing cron events that were edited, imported, or paused are left in place; pausing is cleared so they run again
+- URL events use `wp_safe_remote_get()` so private and local destinations are rejected
+
 ## [0.2.5] - 2026-10-26
 
 ### Added
@@ -132,6 +139,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release of Oli Cron Jobs
 
+[0.2.6]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.6
 [0.2.5]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.5
 [0.2.4]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.4
 [0.2.3]: https://github.com/olivierbigras/Oli-cron-jobs/releases/tag/0.2.3

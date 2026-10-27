@@ -87,6 +87,11 @@ class Oli_CJ_URL_Cron_Event_Test extends PHPUnit\Framework\TestCase {
 
 		$this->assertSame( $url, $requested );
 		$this->assertIsArray( $request_args );
+		$this->assertTrue( ! empty( $request_args['reject_unsafe_urls'] ) );
+
+		$source = file_get_contents( OLI_CJ_PLUGIN_DIR . 'includes/class-oli-cj-cron-manager.php' );
+		$this->assertNotFalse( $source );
+		$this->assertMatchesRegularExpression( '/\$response\s*=\s*wp_safe_remote_get\s*\(/', $source );
 
 		$logs = Oli_CJ_Logger::get_logs(
 			array(

@@ -804,7 +804,7 @@ class Oli_CJ_Admin {
 					Oli_CJ_Cron_Manager::add_url_event( $hook, $timestamp, esc_url_raw( $event['url'] ), $args, $schedule );
 					++$imported_count;
 				} else {
-					Oli_CJ_Cron_Manager::add_event( $hook, $timestamp, $args, $schedule );
+					Oli_CJ_Cron_Manager::add_event( $hook, $timestamp, $args, $schedule, false );
 					++$imported_count;
 				}
 			}

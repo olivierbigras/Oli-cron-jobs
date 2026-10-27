@@ -95,6 +95,13 @@ class Oli_CJ_Cron_Manager {
 	}
 
 	/**
+	 * Drop the in-request option cache.
+	 */
+	public static function reset_option_cache() {
+		self::$option_cache = array();
+	}
+
+	/**
 	 * Register handlers for URL and PHP events.
 	 */
 	public static function register_event_handlers() {
@@ -290,13 +297,17 @@ class Oli_CJ_Cron_Manager {
 	/**
 	 * Add a new cron event
 	 *
-	 * @param string $hook Event hook.
-	 * @param int    $timestamp Event timestamp.
-	 * @param array  $args Event arguments.
-	 * @param string $schedule Schedule name (false for single event).
+	 * @param string    $hook              Event hook.
+	 * @param int       $timestamp         Event timestamp.
+	 * @param array     $args              Event arguments.
+	 * @param string    $schedule          Schedule name (false for single event).
+	 * @param bool|null $created_by_plugin True when this plugin created the hook, false when it only
+	 *                                     touched an existing hook, null to detect from the cron array.
 	 * @return bool
 	 */
-	public static function add_event( $hook, $timestamp, $args = array(), $schedule = false ) {
+	public static function add_event( $hook, $timestamp, $args = array(), $schedule = false, $created_by_plugin = null ) {
+		$already_scheduled = self::hook_has_scheduled_event( $hook );
+
 		if ( $schedule ) {
 			$result = wp_schedule_event( $timestamp, $schedule, $hook, $args );
 		} else {
@@ -304,10 +315,39 @@ class Oli_CJ_Cron_Manager {
 		}
 
 		if ( false !== $result ) {
-			self::mark_managed( $hook );
+			$is_owned = self::is_php_event( $hook ) || false !== self::get_url( $hook );
+			if ( true === $created_by_plugin || $is_owned ) {
+				self::mark_managed( $hook );
+			} elseif ( false !== $created_by_plugin ) {
+				// Auto: only claim hooks that did not already exist.
+				if ( ! $already_scheduled ) {
+					self::mark_managed( $hook );
+				}
+			}
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Whether any event is already scheduled for a hook.
+	 *
+	 * @param string $hook Hook name.
+	 * @return bool
+	 */
+	public static function hook_has_scheduled_event( $hook ) {
+		$crons = _get_cron_array();
+		if ( empty( $crons ) ) {
+			return false;
+		}
+
+		foreach ( $crons as $cron ) {
+			if ( isset( $cron[ $hook ] ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -316,11 +356,48 @@ class Oli_CJ_Cron_Manager {
 	 * @param string $hook Hook name.
 	 */
 	public static function mark_managed( $hook ) {
-		$managed = self::get_plugin_option( 'oli_cj_managed_hooks', array() );
-		if ( ! in_array( $hook, $managed, true ) ) {
-			$managed[] = $hook;
-			self::update_plugin_option( 'oli_cj_managed_hooks', $managed );
+		foreach ( array( 'oli_cj_managed_hooks', 'oli_cj_created_hooks' ) as $option ) {
+			$list = self::get_plugin_option( $option, array() );
+			if ( ! in_array( $hook, $list, true ) ) {
+				$list[] = $hook;
+				self::update_plugin_option( $option, $list );
+			}
 		}
+	}
+
+	/**
+	 * Forget a hook this plugin no longer owns.
+	 *
+	 * @param string $hook Hook name.
+	 */
+	public static function unmark_managed( $hook ) {
+		foreach ( array( 'oli_cj_managed_hooks', 'oli_cj_created_hooks' ) as $option ) {
+			$list = self::get_plugin_option( $option, array() );
+			$key  = array_search( $hook, $list, true );
+			if ( false === $key ) {
+				continue;
+			}
+
+			unset( $list[ $key ] );
+			self::update_plugin_option( $option, array_values( $list ) );
+		}
+	}
+
+	/**
+	 * Whether this plugin created the hook (PHP, URL, oli_cj_*, or a new hook).
+	 *
+	 * @param string $hook Hook name.
+	 * @return bool
+	 */
+	public static function is_plugin_created_hook( $hook ) {
+		require_once OLI_CJ_PLUGIN_DIR . 'includes/oli-cj-ownership.php';
+
+		return oli_cj_is_plugin_created_hook(
+			$hook,
+			self::get_plugin_option( 'oli_cj_created_hooks', array() ),
+			self::get_plugin_option( 'oli_cj_url_events', array() ),
+			self::get_plugin_option( 'oli_cj_php_events', array() )
+		);
 	}
 
 	/**
@@ -330,12 +407,7 @@ class Oli_CJ_Cron_Manager {
 	 * @return bool
 	 */
 	public static function is_managed( $hook ) {
-		if ( false !== self::get_url( $hook ) || false !== self::get_php_code( $hook ) ) {
-			return true;
-		}
-
-		$managed = self::get_plugin_option( 'oli_cj_managed_hooks', array() );
-		return in_array( $hook, $managed, true );
+		return self::is_plugin_created_hook( $hook );
 	}
 
 	/**
@@ -503,11 +575,13 @@ class Oli_CJ_Cron_Manager {
 	 * @return bool
 	 */
 	public static function edit_event( $old_hook, $old_timestamp, $old_sig, $new_hook, $new_timestamp, $new_args, $new_schedule ) {
+		$was_created = self::is_plugin_created_hook( $old_hook );
+
 		// Delete old event.
 		self::delete_event( $old_hook, $old_timestamp, $old_sig );
 
-		// Add new event.
-		return self::add_event( $new_hook, $new_timestamp, $new_args, $new_schedule );
+		// Keep creation only when the original hook was created by this plugin.
+		return self::add_event( $new_hook, $new_timestamp, $new_args, $new_schedule, $was_created );
 	}
 
 	/**
@@ -794,7 +868,7 @@ class Oli_CJ_Cron_Manager {
 		Oli_CJ_PHP_Events::save_code( $hook, $code );
 		Oli_CJ_PHP_Events::register_handler( $hook );
 
-		return self::add_event( $hook, $timestamp, $args, $schedule );
+		return self::add_event( $hook, $timestamp, $args, $schedule, true );
 	}
 
 	/**
@@ -816,7 +890,7 @@ class Oli_CJ_Cron_Manager {
 		self::update_plugin_option( 'oli_cj_url_events', $url_events );
 		self::register_url_event_handler( $hook );
 
-		return self::add_event( $hook, $timestamp, $args, $schedule );
+		return self::add_event( $hook, $timestamp, $args, $schedule, true );
 	}
 
 	/**
@@ -909,7 +983,7 @@ class Oli_CJ_Cron_Manager {
 			$start_time = microtime( true );
 			$error      = '';
 
-			$response = wp_remote_get( $url, array( 'timeout' => 30 ) );
+			$response = wp_safe_remote_get( $url, array( 'timeout' => 30 ) );
 
 			if ( is_wp_error( $response ) ) {
 				$error = $response->get_error_message();
@@ -1074,6 +1148,7 @@ class Oli_CJ_Cron_Manager {
 		}
 
 		Oli_CJ_PHP_Events::delete_code( $hook );
+		self::unmark_managed( $hook );
 	}
 
 	/**

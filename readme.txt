@@ -5,7 +5,7 @@ Tags: cron, scheduled-tasks, cron-manager, debugging, tasks
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.5
+Stable tag: 0.2.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -118,6 +118,11 @@ This feature is unused until a URL event is created.
 
 == Changelog ==
 
+= 0.2.6 =
+* Uninstall removes only events created by this plugin (new hooks, PHP events, URL events)
+* Events that were only edited, imported, or paused are left scheduled; paused foreign hooks are resumed
+* URL events now request destinations with wp_safe_remote_get
+
 = 0.2.5 =
 * Added Domain Path: /languages and regenerated the translation catalog
 * Known log error messages are translated on the logs screen; stored rows are unchanged
@@ -174,6 +179,9 @@ This feature is unused until a URL event is created.
 * Initial release
 
 == Upgrade Notice ==
+
+= 0.2.6 =
+Uninstall no longer clears core or third-party cron events that were only edited or paused.
 
 = 0.2.5 =
 Translation catalog updated. Known log messages are translated when displayed.

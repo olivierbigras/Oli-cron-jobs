@@ -5,12 +5,18 @@
  * @package Oli_Cron_Jobs
  */
 
-if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
+if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) && ! defined( 'OLI_CJ_LOAD_UNINSTALL_FN' ) ) {
 	exit;
 }
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+require_once __DIR__ . '/includes/oli-cj-ownership.php';
+
 /**
- * Delete plugin options, logs table, and scheduled cleanup for the current site.
+ * Delete plugin options, logs table, and plugin-created cron events for the current site.
  */
 function oli_cj_uninstall_site() {
 	global $wpdb;
@@ -20,27 +26,20 @@ function oli_cj_uninstall_site() {
 		'oli_cj_log_retention_days',
 		'oli_cj_paused_hooks',
 		'oli_cj_managed_hooks',
+		'oli_cj_created_hooks',
 		'oli_cj_url_events',
 		'oli_cj_php_events',
 		'oli_cj_custom_schedules',
 	);
 
 	$managed    = get_option( 'oli_cj_managed_hooks', array() );
+	$created    = get_option( 'oli_cj_created_hooks', array() );
 	$url_events = get_option( 'oli_cj_url_events', array() );
 	$php_events = get_option( 'oli_cj_php_events', array() );
 
-	$hooks = array( 'oli_cj_cleanup_logs' );
-	if ( is_array( $managed ) ) {
-		$hooks = array_merge( $hooks, $managed );
-	}
-	if ( is_array( $url_events ) ) {
-		$hooks = array_merge( $hooks, array_keys( $url_events ) );
-	}
-	if ( is_array( $php_events ) ) {
-		$hooks = array_merge( $hooks, array_keys( $php_events ) );
-	}
+	$hooks = oli_cj_hooks_to_unschedule_on_uninstall( $created, $url_events, $php_events, $managed );
 
-	foreach ( array_unique( array_filter( $hooks ) ) as $hook ) {
+	foreach ( $hooks as $hook ) {
 		wp_clear_scheduled_hook( $hook );
 	}
 
@@ -56,19 +55,21 @@ function oli_cj_uninstall_site() {
 	$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $table_name ) );
 }
 
-if ( is_multisite() ) {
-	$oli_cj_site_ids = get_sites(
-		array(
-			'fields' => 'ids',
-			'number' => 0,
-		)
-	);
+if ( defined( 'WP_UNINSTALL_PLUGIN' ) && WP_UNINSTALL_PLUGIN ) {
+	if ( is_multisite() ) {
+		$oli_cj_site_ids = get_sites(
+			array(
+				'fields' => 'ids',
+				'number' => 0,
+			)
+		);
 
-	foreach ( $oli_cj_site_ids as $oli_cj_site_id ) {
-		switch_to_blog( (int) $oli_cj_site_id );
+		foreach ( $oli_cj_site_ids as $oli_cj_site_id ) {
+			switch_to_blog( (int) $oli_cj_site_id );
+			oli_cj_uninstall_site();
+			restore_current_blog();
+		}
+	} else {
 		oli_cj_uninstall_site();
-		restore_current_blog();
 	}
-} else {
-	oli_cj_uninstall_site();
 }
