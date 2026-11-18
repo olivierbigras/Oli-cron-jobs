@@ -5,7 +5,7 @@ Tags: cron, scheduled-tasks, cron-manager, debugging, tasks
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.10
+Stable tag: 0.2.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,7 +87,16 @@ Users who have `manage_options`, the dedicated `oli_cj_manage_php_events` capabi
 
 = Why does this plugin use eval()? =
 
-PHP cron events need to run administrator-authored code when the event fires. The plugin uses `eval()` only for that feature, after an HMAC integrity check, and only when file editing is allowed. The risk is the same as pasting that code into the plugin editor: a compromised administrator account, or tampered stored code that still has a valid hash, can run arbitrary PHP. Disable the feature with `OLI_CJ_DISABLE_PHP_EVENTS` or by setting `DISALLOW_FILE_EDIT`.
+PHP cron events need to run administrator-authored code when the event fires, and PHP has no other way to run code that is stored in the database. The plugin uses `eval()` only for that feature and nowhere else. This is the same model other cron managers use for their PHP cron events (for example WP Crontrol): the code is stored by an administrator, protected by an integrity hash, and run when the event fires.
+
+What the plugin does to limit the risk:
+
+* Only users who have `manage_options`, the `oli_cj_manage_php_events` capability (administrators have it by default), and `edit_files` can create, edit, run, or delete a PHP event. On multisite only a super administrator can. `edit_files` is the permission used by the plugin and theme editors, so it is already limited to people who can edit PHP files from the dashboard.
+* Every create, edit, run, and delete action checks a nonce first, and the capability check runs before any code is stored or run.
+* The code is stored in the `oli_cj_php_events` option together with an HMAC-SHA256 hash made with `wp_salt( 'auth' )`. If the stored code does not match its hash (for example after a direct database change), it does not run until an authorized user saves it again.
+* The feature can be turned off. Define `OLI_CJ_DISABLE_PHP_EVENTS` as `true` in `wp-config.php` (the older `OLI_CJ_DISALLOW_PHP_EVENTS` is also honored), or use the `oli_cj_php_events_disabled` filter. PHP events also never run, even from WP-Cron, when `DISALLOW_FILE_EDIT` or `DISALLOW_FILE_MODS` is defined.
+
+The remaining risk is the same as for any admin-authored code: a compromised administrator account can run arbitrary PHP. If you do not need PHP events, disable them.
 
 = What happens to leftover cron events after I uninstall? =
 
@@ -124,6 +133,9 @@ This feature is unused until a URL event is created.
 5. WP-Cron status and spawn test
 
 == Changelog ==
+
+= 0.2.11 =
+* WordPress.org submission build. No behavior change: the single `eval()` call that runs PHP cron events now carries the same documented `phpcs:ignore` for the Plugin Check forbidden-function rule as for the discouraged-function rule, and the "Why does this plugin use eval()?" FAQ now describes the exact access checks, nonce, storage and disable switches.
 
 = 0.2.10 =
 * Security: every request value is read only after a nonce check and a capability check. The events list filters, search and sort now carry their own nonce (a bare list URL gets one through a single redirect), the "Edit" link is signed for its event, and status messages after a redirect are signed.
@@ -209,6 +221,9 @@ This feature is unused until a URL event is created.
 * Initial release
 
 == Upgrade Notice ==
+
+= 0.2.11 =
+No behavior change. Packaging and documentation update for the WordPress.org release.
 
 = 0.2.10 =
 Security hardening of admin requests (nonces on list filters, edit links and status messages). No settings or cron events change.

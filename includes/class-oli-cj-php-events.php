@@ -522,7 +522,7 @@ class Oli_CJ_PHP_Events {
 
 		$code = self::strip_opening_tag( $code );
 
-		// phpcs:ignore Squiz.PHP.Eval.Discouraged -- HMAC-checked PHP cron event; gated by oli_cj_manage_php_events, manage_options, edit_files, super admin on multisite, and OLI_CJ_DISABLE_PHP_EVENTS / DISALLOW_FILE_EDIT / DISALLOW_FILE_MODS.
+		// phpcs:ignore Squiz.PHP.Eval.Discouraged,Generic.PHP.ForbiddenFunctions.Found -- HMAC-checked PHP cron event; gated by oli_cj_manage_php_events, manage_options, edit_files, super admin on multisite, and OLI_CJ_DISABLE_PHP_EVENTS / DISALLOW_FILE_EDIT / DISALLOW_FILE_MODS.
 		eval( $code );
 	}
 }

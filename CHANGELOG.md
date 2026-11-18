@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.11] - 2026-11-18
+
+### Changed
+- WordPress.org submission build, no behavior change: the `eval()` call that runs PHP cron events also carries `Generic.PHP.ForbiddenFunctions.Found` in its documented `phpcs:ignore`, and the readme FAQ now describes the PHP event access checks, nonce, storage and disable switches.
+
 ## [0.2.10] - 2026-10-27
 
 ### Sécurité
