@@ -146,7 +146,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - composer.json: author email set to oli@olivierbigras.com
-- composer.json: package renamed from bigrat95/ to olivierbigras/
+- composer.json: GitHub package links now point to olivierbigras/
 
 ## [0.1.4] - 2026-10-21
 

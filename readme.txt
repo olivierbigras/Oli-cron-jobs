@@ -13,6 +13,12 @@ View, add, edit, run, pause, and export WordPress cron events, including URL eve
 
 == Description ==
 
+What sets Oli Cron Jobs apart:
+
+* **Site Health tests for WP-Cron.** Checks for disabled cron, spawn failures, and missed events, plus a spawn test on the plugin screen.
+* **JSON export and import.** Move your custom events, URL events, and custom schedules between sites. PHP events are included only when the current user may manage them.
+* **Separate permission for PHP events.** A filterable `oli_cj_manage_php_events` capability on top of `manage_options` and `edit_files`, super administrators only on multisite, and `wp oli-cron` for pause and resume from WP-CLI.
+
 Oli Cron Jobs is a cron event manager for WordPress. It lists every scheduled event and lets administrators add, edit, delete, pause, resume, or run events immediately.
 
 Author: Olivier Bigras
