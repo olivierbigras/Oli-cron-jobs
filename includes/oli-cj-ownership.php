@@ -14,11 +14,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Whether a hook is owned because it is a PHP event, URL event, or oli_cj_* name.
+ * Whether a hook is owned because it is a URL event, oli_cj_* name, or a leftover PHP event option.
+ *
+ * The $php_events parameter remains for uninstall leftover cleanup.
  *
  * @param string     $hook       Hook name.
  * @param array|null $url_events URL event map. Null reads the option.
- * @param array|null $php_events PHP event map. Null reads the option.
+ * @param array|null $php_events Leftover PHP event map. Null reads the option if present.
  * @return bool
  */
 function oli_cj_is_clearly_owned_hook( $hook, $url_events = null, $php_events = null ) {
@@ -48,13 +50,13 @@ function oli_cj_is_clearly_owned_hook( $hook, $url_events = null, $php_events = 
 /**
  * Whether this plugin created the hook.
  *
- * Trusts PHP/URL/oli_cj_* data and the post-0.2.6 created list. The legacy
- * managed list is not enough on its own.
+ * Trusts URL/oli_cj_* data (and any leftover PHP event option) plus the
+ * post-0.2.6 created list. The legacy managed list is not enough on its own.
  *
  * @param string     $hook          Hook name.
  * @param array|null $created_hooks Created-hook list. Null reads the option.
  * @param array|null $url_events    URL event map. Null reads the option.
- * @param array|null $php_events    PHP event map. Null reads the option.
+ * @param array|null $php_events    Leftover PHP event map. Null reads the option if present.
  * @return bool
  */
 function oli_cj_is_plugin_created_hook( $hook, $created_hooks = null, $url_events = null, $php_events = null ) {
@@ -74,7 +76,7 @@ function oli_cj_is_plugin_created_hook( $hook, $created_hooks = null, $url_event
  *
  * @param array|null $created_hooks Created-hook list. Null reads the option.
  * @param array|null $url_events    URL event map. Null reads the option.
- * @param array|null $php_events    PHP event map. Null reads the option.
+ * @param array|null $php_events    Leftover PHP event map. Null reads the option if present.
  * @param array|null $managed       Legacy managed list. Null reads the option.
  * @return string[]
  */
@@ -119,7 +121,7 @@ function oli_cj_hooks_to_unschedule_on_uninstall( $created_hooks = null, $url_ev
  *
  * @param array $managed    Current managed list.
  * @param array $url_events URL event map.
- * @param array $php_events PHP event map.
+ * @param array $php_events Leftover PHP event map (usually empty after upgrade).
  * @return string[]
  */
 function oli_cj_migrate_managed_hooks( $managed, $url_events, $php_events ) {

@@ -105,11 +105,6 @@ class Oli_CJ_CLI {
 			}
 		}
 
-		if ( Oli_CJ_Cron_Manager::is_php_event( $hook ) && ! Oli_CJ_PHP_Events::can_execute() ) {
-			WP_CLI::error( __( 'PHP cron events are disabled and cannot be executed.', 'oli-cron-jobs' ) );
-			return;
-		}
-
 		/* translators: %s: cron hook name */
 		WP_CLI::log( sprintf( __( 'Running cron event: %s', 'oli-cron-jobs' ), $hook ) );
 

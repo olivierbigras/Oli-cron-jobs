@@ -74,9 +74,6 @@ class Oli_CJ_List_Table extends WP_List_Table {
 				<option value="noaction" <?php selected( $type_filter, 'noaction' ); ?>><?php echo esc_html__( 'Events with no action', 'oli-cron-jobs' ); ?></option>
 				<option value="core" <?php selected( $type_filter, 'core' ); ?>><?php echo esc_html__( 'WordPress Core', 'oli-cron-jobs' ); ?></option>
 				<option value="custom" <?php selected( $type_filter, 'custom' ); ?>><?php echo esc_html__( 'Custom events', 'oli-cron-jobs' ); ?></option>
-				<?php if ( Oli_CJ_PHP_Events::can_manage() ) : ?>
-					<option value="php" <?php selected( $type_filter, 'php' ); ?>><?php echo esc_html__( 'PHP Events', 'oli-cron-jobs' ); ?></option>
-				<?php endif; ?>
 				<option value="url" <?php selected( $type_filter, 'url' ); ?>><?php echo esc_html__( 'URL Events', 'oli-cron-jobs' ); ?></option>
 				<option value="plugin" <?php selected( $type_filter, 'plugin' ); ?>><?php echo esc_html__( 'Plugin', 'oli-cron-jobs' ); ?></option>
 			</select>
@@ -240,7 +237,6 @@ class Oli_CJ_List_Table extends WP_List_Table {
 			'noaction' => 0,
 			'core'     => 0,
 			'custom'   => 0,
-			'php'      => 0,
 		);
 
 		foreach ( $events as $event ) {
@@ -260,12 +256,7 @@ class Oli_CJ_List_Table extends WP_List_Table {
 			'noaction' => __( 'Events with no action', 'oli-cron-jobs' ),
 			'core'     => __( 'WordPress core', 'oli-cron-jobs' ),
 			'custom'   => __( 'Custom events', 'oli-cron-jobs' ),
-			'php'      => __( 'PHP', 'oli-cron-jobs' ),
 		);
-
-		if ( ! Oli_CJ_PHP_Events::can_manage() ) {
-			unset( $labels['php'] );
-		}
 
 		$views = array();
 		foreach ( $labels as $slug => $label ) {
@@ -324,48 +315,37 @@ class Oli_CJ_List_Table extends WP_List_Table {
 
 		$nonce = wp_create_nonce( 'oli_cj_action' );
 
-		$is_php_event   = Oli_CJ_Cron_Manager::is_php_event( $item['hook'] );
-		$can_manage_php = Oli_CJ_PHP_Events::can_manage();
-		$can_run        = ! $is_php_event || $can_manage_php;
-		$can_mutate     = ! $is_php_event || $can_manage_php;
+		$actions['run'] = sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( admin_url( 'tools.php?page=oli-cron-jobs&action=run_now&hook=' . rawurlencode( $item['hook'] ) . '&args=' . rawurlencode( wp_json_encode( $item['args'] ) ) . '&_wpnonce=' . $nonce ) ),
+			esc_html__( 'Run Now', 'oli-cron-jobs' )
+		);
 
-		if ( $can_run ) {
-			$actions['run'] = sprintf(
+		$actions['edit'] = sprintf(
+			'<a href="%s">%s</a>',
+			esc_url( Oli_CJ_Admin::edit_link_url( $item['hook'], $item['timestamp'], $item['sig'] ) ),
+			esc_html__( 'Edit', 'oli-cron-jobs' )
+		);
+
+		$actions['delete'] = sprintf(
+			'<a href="%s" class="delete oli-cj-confirm" data-oli-cj-confirm="%s">%s</a>',
+			esc_url( admin_url( 'tools.php?page=oli-cron-jobs&action=delete_event&hook=' . rawurlencode( $item['hook'] ) . '&timestamp=' . $item['timestamp'] . '&sig=' . rawurlencode( $item['sig'] ) . '&_wpnonce=' . $nonce ) ),
+			esc_attr( __( 'Are you sure?', 'oli-cron-jobs' ) ),
+			esc_html__( 'Delete', 'oli-cron-jobs' )
+		);
+
+		if ( Oli_CJ_Cron_Manager::is_hook_paused( $item['hook'] ) ) {
+			$actions['resume'] = sprintf(
 				'<a href="%s">%s</a>',
-				esc_url( admin_url( 'tools.php?page=oli-cron-jobs&action=run_now&hook=' . rawurlencode( $item['hook'] ) . '&args=' . rawurlencode( wp_json_encode( $item['args'] ) ) . '&_wpnonce=' . $nonce ) ),
-				esc_html__( 'Run Now', 'oli-cron-jobs' )
+				esc_url( admin_url( 'tools.php?page=oli-cron-jobs&action=resume_hook&hook=' . rawurlencode( $item['hook'] ) . '&_wpnonce=' . $nonce ) ),
+				esc_html__( 'Resume', 'oli-cron-jobs' )
 			);
-		}
-
-		if ( $can_mutate ) {
-			$actions['edit'] = sprintf(
+		} else {
+			$actions['pause'] = sprintf(
 				'<a href="%s">%s</a>',
-				esc_url( Oli_CJ_Admin::edit_link_url( $item['hook'], $item['timestamp'], $item['sig'] ) ),
-				esc_html__( 'Edit', 'oli-cron-jobs' )
+				esc_url( admin_url( 'tools.php?page=oli-cron-jobs&action=pause_hook&hook=' . rawurlencode( $item['hook'] ) . '&_wpnonce=' . $nonce ) ),
+				esc_html__( 'Pause', 'oli-cron-jobs' )
 			);
-		}
-
-		if ( $can_mutate ) {
-			$actions['delete'] = sprintf(
-				'<a href="%s" class="delete oli-cj-confirm" data-oli-cj-confirm="%s">%s</a>',
-				esc_url( admin_url( 'tools.php?page=oli-cron-jobs&action=delete_event&hook=' . rawurlencode( $item['hook'] ) . '&timestamp=' . $item['timestamp'] . '&sig=' . rawurlencode( $item['sig'] ) . '&_wpnonce=' . $nonce ) ),
-				esc_attr( __( 'Are you sure?', 'oli-cron-jobs' ) ),
-				esc_html__( 'Delete', 'oli-cron-jobs' )
-			);
-
-			if ( Oli_CJ_Cron_Manager::is_hook_paused( $item['hook'] ) ) {
-				$actions['resume'] = sprintf(
-					'<a href="%s">%s</a>',
-					esc_url( admin_url( 'tools.php?page=oli-cron-jobs&action=resume_hook&hook=' . rawurlencode( $item['hook'] ) . '&_wpnonce=' . $nonce ) ),
-					esc_html__( 'Resume', 'oli-cron-jobs' )
-				);
-			} else {
-				$actions['pause'] = sprintf(
-					'<a href="%s">%s</a>',
-					esc_url( admin_url( 'tools.php?page=oli-cron-jobs&action=pause_hook&hook=' . rawurlencode( $item['hook'] ) . '&_wpnonce=' . $nonce ) ),
-					esc_html__( 'Pause', 'oli-cron-jobs' )
-				);
-			}
 		}
 
 		return sprintf( '<code>%s</code>%s', $this->breakable_code( $item['hook'] ), $this->row_actions( $actions ) );
