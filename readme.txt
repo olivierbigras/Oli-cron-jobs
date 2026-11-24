@@ -5,11 +5,11 @@ Tags: cron, scheduled-tasks, cron-manager, debugging, tasks
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 0.2.10
+Stable tag: 0.2.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-View, add, edit, run, pause, and export WordPress cron events, including URL events and capability-gated PHP events.
+View, add, edit, run, pause, and export WordPress cron events, including URL events.
 
 == Description ==
 
@@ -22,35 +22,18 @@ Email: oli@olivierbigras.com
 = Key Features =
 
 * **Event list** - Hook, arguments, next run in the site timezone and in UTC, recurrence, action callbacks, and late or missed status
-* **Search, filters, and pagination** - Filter by all events, events with no action, core, custom, or PHP events
+* **Search, filters, and pagination** - Filter by all events, events with no action, core, custom, URL, or plugin events
 * **Event management** - Add, edit, delete, run now, and bulk delete
 * **Pause and resume** - Temporarily stop a hook from running without deleting it
 * **Custom schedules** - Add and delete custom intervals
 * **URL cron events** - Schedule an HTTP request to a URL you choose
-* **PHP cron events** - Run stored PHP with `eval()` when an event fires. Requires `manage_options` and the dedicated `oli_cj_manage_php_events` capability (administrators have it by default), plus `edit_files`. On multisite only a super administrator may manage PHP events. Execution is refused, including from WP-Cron, when `OLI_CJ_DISABLE_PHP_EVENTS`, `DISALLOW_FILE_EDIT`, or `DISALLOW_FILE_MODS` is set
 * **WP-Cron status** - See whether built-in cron is disabled, whether alternate cron is on, and run a spawn test
 * **CSV export** - Download the event list as a spreadsheet
 * **Site Health** - Checks for disabled cron, spawn failures, and missed events
 
-= PHP cron events =
-
-PHP events execute stored code with PHP's `eval()` function after an HMAC-SHA256 integrity check. This is powerful and dangerous: the code runs with the same privileges as WordPress itself. Only trusted administrators who have `manage_options`, `oli_cj_manage_php_events` (granted to administrators by default), and `edit_files` should create PHP events. On a multisite network only a super administrator may manage them. A warning is shown on the add and edit screens.
-
-Stored PHP is hashed with `wp_salt( 'auth' )`. Tampered code will not run until the event is re-saved. The plugin does not write a temporary file and include it.
-
-Execution is refused even when WP-Cron fires the hook if `OLI_CJ_DISABLE_PHP_EVENTS`, `DISALLOW_FILE_EDIT`, or `DISALLOW_FILE_MODS` is defined. PHP events cannot be added, edited, deleted, or run manually in those cases either. The PHP event form is hidden when the feature is disabled.
-
-To disable PHP events completely, add this to `wp-config.php`:
-
-`define( 'OLI_CJ_DISABLE_PHP_EVENTS', true );`
-
-The older `OLI_CJ_DISALLOW_PHP_EVENTS` constant is still honored.
-
 = Security =
 
 * Cron management requires the `manage_options` capability
-* PHP events also require the dedicated `oli_cj_manage_php_events` capability (filterable) and `edit_files`
-* On multisite, PHP events are restricted to super administrators
 * Every create, edit, run, and delete action uses a nonce
 * Input is sanitized and output is escaped
 * The plugin does not phone home and does not track users
@@ -80,14 +63,6 @@ Yes, but deleting core events can affect scheduled posts, update checks, and sim
 = What happens if I pause a hook? =
 
 The event stays scheduled, but its callbacks do not run until you resume the hook.
-
-= Who can manage PHP cron events? =
-
-Users who have `manage_options`, the dedicated `oli_cj_manage_php_events` capability (administrators have it by default), and `edit_files`. On a multisite network only a super administrator may manage PHP events. If `OLI_CJ_DISABLE_PHP_EVENTS`, `DISALLOW_FILE_EDIT`, or `DISALLOW_FILE_MODS` is set, PHP events cannot be created, changed, or executed (including from WP-Cron).
-
-= Why does this plugin use eval()? =
-
-PHP cron events need to run administrator-authored code when the event fires. The plugin uses `eval()` only for that feature, after an HMAC integrity check, and only when file editing is allowed. The risk is the same as pasting that code into the plugin editor: a compromised administrator account, or tampered stored code that still has a valid hash, can run arbitrary PHP. Disable the feature with `OLI_CJ_DISABLE_PHP_EVENTS` or by setting `DISALLOW_FILE_EDIT`.
 
 = What happens to leftover cron events after I uninstall? =
 
@@ -125,9 +100,16 @@ This feature is unused until a URL event is created.
 
 == Changelog ==
 
+= 0.2.12 =
+* Removed the PHP cron events feature (eval()-based stored PHP, UI, import/export of PHP code, and related capability).
+* Upgrade unschedules leftover PHP event hooks, deletes stored PHP event options, and removes the oli_cj_manage_php_events capability without fatals.
+* JSON import silently skips type "php" rows.
+* Logger create_table() uses a dbDelta-compatible CREATE TABLE format.
+* Re-audited request handling: nonce and manage_options before actions; sanitize on input; escape on output.
+
 = 0.2.10 =
 * Security: every request value is read only after a nonce check and a capability check. The events list filters, search and sort now carry their own nonce (a bare list URL gets one through a single redirect), the "Edit" link is signed for its event, and status messages after a redirect are signed.
-* Security: the add/edit forms verify their nonce before reading any field; the PHP event code is read with filter_input() so it is stored exactly as typed (still limited to users allowed to manage PHP events and HMAC-signed).
+* Security: the add/edit forms verify their nonce before reading any field.
 * Log queries are fixed, fully prepared SQL strings with the %i identifier placeholder.
 * Late escaping of the row action labels; the JSON export is sent with wp_send_json().
 
@@ -209,6 +191,9 @@ This feature is unused until a URL event is created.
 * Initial release
 
 == Upgrade Notice ==
+
+= 0.2.12 =
+Removes PHP cron events (eval). Existing PHP event hooks are unscheduled and stored PHP data is deleted on upgrade. Recommended for all users.
 
 = 0.2.10 =
 Security hardening of admin requests (nonces on list filters, edit links and status messages). No settings or cron events change.

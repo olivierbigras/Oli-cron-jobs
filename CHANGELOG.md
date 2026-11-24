@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.12] - 2026-11-24
+
+### Removed
+- PHP cron events feature entirely (stored PHP executed via `eval()`, admin UI, import/export of PHP code, capability, filters, and related hooks).
+- On upgrade from earlier versions, scheduled PHP event hooks are unscheduled, `oli_cj_php_events` / legacy options are deleted, and `oli_cj_manage_php_events` is removed from roles without fatals.
+- JSON import silently skips rows with `type: php`.
+
+### Fixed
+- `Oli_CJ_Logger::create_table()` now uses a dbDelta-compatible `CREATE TABLE` (no `IF NOT EXISTS`, two spaces after `PRIMARY KEY`, one field per line, `$wpdb->prefix` table name, `$wpdb->get_charset_collate()`).
+- Admin screens for schedules, logs, and settings check `current_user_can( 'manage_options' )` before rendering or acting.
+- Capability is verified before any admin action, including import handling for unauthorized users.
+
+### Security
+- Re-audited every `$_GET` / `$_POST` / `$_REQUEST` / `$_FILES` use: nonce verification and capability checks before actions, sanitize on input, escape on output.
+
 ## [0.2.10] - 2026-10-27
 
 ### Sécurité

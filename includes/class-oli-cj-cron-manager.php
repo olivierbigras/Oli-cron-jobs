@@ -102,7 +102,7 @@ class Oli_CJ_Cron_Manager {
 	}
 
 	/**
-	 * Register handlers for URL and PHP events.
+	 * Register handlers for URL events.
 	 */
 	public static function register_event_handlers() {
 		$url_events = self::get_plugin_option( 'oli_cj_url_events', array() );
@@ -111,8 +111,6 @@ class Oli_CJ_Cron_Manager {
 				self::register_url_event_handler( $hook );
 			}
 		}
-
-		Oli_CJ_PHP_Events::register_handlers();
 	}
 
 	/**
@@ -197,50 +195,6 @@ class Oli_CJ_Cron_Manager {
 	}
 
 	/**
-	 * Whether stored PHP events may be executed.
-	 *
-	 * @return bool
-	 */
-	public static function can_execute_php_events() {
-		return Oli_CJ_PHP_Events::can_execute();
-	}
-
-	/**
-	 * Get all stored PHP events.
-	 *
-	 * @return array
-	 */
-	public static function get_php_events() {
-		return Oli_CJ_PHP_Events::get_all();
-	}
-
-	/**
-	 * Whether any PHP events are stored.
-	 *
-	 * @return bool
-	 */
-	public static function has_legacy_php_events() {
-		return Oli_CJ_PHP_Events::has_any();
-	}
-
-	/**
-	 * Whether a hook is a stored PHP event.
-	 *
-	 * @param string $hook Hook name.
-	 * @return bool
-	 */
-	public static function is_php_event( $hook ) {
-		return Oli_CJ_PHP_Events::is_php_event( $hook );
-	}
-
-	/**
-	 * Kept for upgrades. PHP events are no longer auto-paused.
-	 */
-	public static function disable_legacy_php_events() {
-		// No-op: PHP events are supported again and keep their pause state.
-	}
-
-	/**
 	 * Get all cron events
 	 *
 	 * @return array
@@ -315,7 +269,7 @@ class Oli_CJ_Cron_Manager {
 		}
 
 		if ( false !== $result ) {
-			$is_owned = self::is_php_event( $hook ) || false !== self::get_url( $hook );
+			$is_owned = false !== self::get_url( $hook );
 			if ( true === $created_by_plugin || $is_owned ) {
 				self::mark_managed( $hook );
 			} elseif ( false !== $created_by_plugin ) {
@@ -384,7 +338,10 @@ class Oli_CJ_Cron_Manager {
 	}
 
 	/**
-	 * Whether this plugin created the hook (PHP, URL, oli_cj_*, or a new hook).
+	 * Whether this plugin created the hook (URL, oli_cj_*, or a new hook).
+	 *
+	 * Passes any leftover oli_cj_php_events map for uninstall/upgrade safety;
+	 * after maybe_upgrade() removes that option the map is empty.
 	 *
 	 * @param string $hook Hook name.
 	 * @return bool
@@ -411,7 +368,7 @@ class Oli_CJ_Cron_Manager {
 	}
 
 	/**
-	 * Classify a hook for filters: url, php, core, plugin, or custom.
+	 * Classify a hook for filters: url, core, plugin, or custom.
 	 *
 	 * @param string $hook Hook name.
 	 * @return string
@@ -419,10 +376,6 @@ class Oli_CJ_Cron_Manager {
 	public static function get_event_kind( $hook ) {
 		if ( false !== self::get_url( $hook ) ) {
 			return 'url';
-		}
-
-		if ( false !== self::get_php_code( $hook ) ) {
-			return 'php';
 		}
 
 		$callbacks  = self::get_hook_callbacks( $hook );
@@ -531,18 +484,6 @@ class Oli_CJ_Cron_Manager {
 		if ( self::is_hook_paused( $hook ) ) {
 			Oli_CJ_Logger::log_event( $hook, $args, 'blocked', 0, 'Hook is paused' );
 			return false;
-		}
-
-		if ( self::is_php_event( $hook ) ) {
-			if ( Oli_CJ_PHP_Events::constants_block_execution() || ! Oli_CJ_PHP_Events::can_execute() || Oli_CJ_PHP_Events::is_file_editing_disallowed() ) {
-				Oli_CJ_Logger::log_event( $hook, $args, 'blocked', 0, 'PHP events are disabled' );
-				return false;
-			}
-
-			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound -- Runs the selected cron hook.
-			do_action_ref_array( $hook, $args );
-
-			return Oli_CJ_PHP_Events::last_execute_succeeded();
 		}
 
 		$start_time = microtime( true );
@@ -845,33 +786,6 @@ class Oli_CJ_Cron_Manager {
 	}
 
 	/**
-	 * Get stored PHP code for a hook.
-	 *
-	 * @param string $hook Hook name.
-	 * @return string|false
-	 */
-	public static function get_php_code( $hook ) {
-		return Oli_CJ_PHP_Events::get_code( $hook );
-	}
-
-	/**
-	 * Add a PHP cron event.
-	 *
-	 * @param string $hook      Hook name.
-	 * @param int    $timestamp Timestamp.
-	 * @param string $code      PHP code.
-	 * @param array  $args      Arguments.
-	 * @param string $schedule  Schedule name.
-	 * @return bool
-	 */
-	public static function add_php_event( $hook, $timestamp, $code, $args = array(), $schedule = false ) {
-		Oli_CJ_PHP_Events::save_code( $hook, $code );
-		Oli_CJ_PHP_Events::register_handler( $hook );
-
-		return self::add_event( $hook, $timestamp, $args, $schedule, true );
-	}
-
-	/**
 	 * Add a URL cron event
 	 *
 	 * @param string $hook Event hook.
@@ -995,7 +909,7 @@ class Oli_CJ_Cron_Manager {
 	}
 
 	/**
-	 * Whether a callback is an internal pause/URL/PHP helper.
+	 * Whether a callback is an internal pause/URL helper.
 	 *
 	 * @param mixed $callback Callback.
 	 * @return bool
@@ -1008,7 +922,6 @@ class Oli_CJ_Cron_Manager {
 		$internal = array(
 			'block_paused_execution',
 			'execute_url_event_wrapper',
-			'execute_wrapper',
 		);
 
 		return in_array( $callback[1], $internal, true );
@@ -1021,7 +934,7 @@ class Oli_CJ_Cron_Manager {
 	 * @return bool
 	 */
 	public static function event_has_action( $hook ) {
-		if ( self::is_php_event( $hook ) || false !== self::get_url( $hook ) ) {
+		if ( false !== self::get_url( $hook ) ) {
 			return true;
 		}
 
@@ -1056,10 +969,6 @@ class Oli_CJ_Cron_Manager {
 	 * @return string
 	 */
 	public static function get_event_status( $event ) {
-		if ( self::is_php_event( $event['hook'] ) && Oli_CJ_PHP_Events::needs_checking( $event['hook'] ) ) {
-			return 'needs_checking';
-		}
-
 		if ( self::url_needs_checking( $event['hook'] ) ) {
 			return 'needs_checking';
 		}
@@ -1130,7 +1039,7 @@ class Oli_CJ_Cron_Manager {
 	}
 
 	/**
-	 * Remove stored URL/PHP data when a hook is no longer scheduled.
+	 * Remove stored URL data when a hook is no longer scheduled.
 	 *
 	 * @param string $hook Hook name.
 	 */
@@ -1147,7 +1056,6 @@ class Oli_CJ_Cron_Manager {
 			self::update_plugin_option( 'oli_cj_url_events', $url_events );
 		}
 
-		Oli_CJ_PHP_Events::delete_code( $hook );
 		self::unmark_managed( $hook );
 	}
 

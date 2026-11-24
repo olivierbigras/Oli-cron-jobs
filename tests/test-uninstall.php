@@ -98,7 +98,7 @@ class Oli_CJ_Uninstall_Test extends PHPUnit\Framework\TestCase {
 	}
 
 	/**
-	 * Legacy managed names that are not PHP/URL/oli_cj_* are dropped.
+	 * Legacy managed names that are not URL/oli_cj_* (or leftover PHP option keys) are dropped.
 	 */
 	public function test_managed_hooks_migration_drops_foreign_names() {
 		$kept = oli_cj_migrate_managed_hooks(
@@ -110,5 +110,28 @@ class Oli_CJ_Uninstall_Test extends PHPUnit\Framework\TestCase {
 		$this->assertContains( 'oli_cj_php_abc123', $kept );
 		$this->assertNotContains( 'wp_version_check', $kept );
 		$this->assertNotContains( 'other_plugin_cron', $kept );
+	}
+
+	/**
+	 * Leftover PHP event option keys are still unschedulable on uninstall.
+	 */
+	public function test_uninstall_clears_leftover_php_event_option_hooks() {
+		$hook = 'leftover_php_hook_' . wp_generate_password( 8, false, false );
+		wp_schedule_single_event( time() + HOUR_IN_SECONDS, $hook );
+		update_option(
+			'oli_cj_php_events',
+			array(
+				$hook => array(
+					'code' => 'return;',
+					'hash' => 'x',
+				),
+			)
+		);
+
+		oli_cj_uninstall_site();
+		Oli_CJ_Cron_Manager::reset_option_cache();
+
+		$this->assertFalse( wp_next_scheduled( $hook ) );
+		$this->assertFalse( get_option( 'oli_cj_php_events', false ) );
 	}
 }

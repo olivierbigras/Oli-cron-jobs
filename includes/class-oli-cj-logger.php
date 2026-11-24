@@ -70,7 +70,7 @@ class Oli_CJ_Logger {
 		$table_name      = self::table_name();
 		$charset_collate = $wpdb->get_charset_collate();
 
-		$sql = "CREATE TABLE IF NOT EXISTS $table_name (
+		$sql = "CREATE TABLE $table_name (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			hook varchar(191) NOT NULL,
 			args longtext,
